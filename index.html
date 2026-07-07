@@ -6,6 +6,16 @@
 <title>Trio BRC – Satış CRM 2026</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// Fix sticky tooltip on canvas mouseleave
+document.addEventListener('mouseleave', function(e){
+  if(!e.target || e.target.tagName !== 'CANVAS') return;
+  try{
+    var c = Chart.getChart(e.target);
+    if(c){ c.tooltip.setActiveElements([],{x:0,y:0}); c.update('none'); }
+  }catch(ex){}
+}, true);
+</script>
 <style>
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -203,6 +213,64 @@ tr:hover td{background:#f8f9ff;}
 .conn-ok{background:var(--green);}.conn-err{background:var(--red);}.conn-loading{background:var(--orange);}
 .sidebar-conn{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);margin-top:8px;padding-top:8px;border-top:1px solid var(--border2);}
 
+
+
+
+/* ── CHART EYE TOGGLE ────────────────────────── */
+.chart-wrap-outer{position:relative;}
+.chart-eye-btn{
+  position:absolute;top:6px;right:6px;z-index:10;
+  background:rgba(255,255,255,0.9);border:1px solid var(--border);
+  border-radius:5px;padding:3px 6px;font-size:13px;cursor:pointer;
+  color:var(--text3);transition:all .15s;line-height:1;
+  backdrop-filter:blur(4px);
+}
+.chart-eye-btn:hover{background:var(--accent-bg);color:var(--accent);border-color:var(--accent);}
+.chart-eye-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+/* ── CARD & KPI HOVER EFFECTS ─────────────── */
+.kpi-card{
+  transition:transform .2s ease, box-shadow .2s ease;
+  cursor:default;
+}
+.kpi-card:hover{
+  transform:translateY(-4px) scale(1.02);
+  box-shadow:0 8px 28px rgba(0,0,0,.12);
+}
+.card{
+  transition:box-shadow .2s ease;
+}
+.card:hover{
+  box-shadow:0 4px 20px rgba(0,0,0,.1);
+}
+canvas{
+  cursor:crosshair;
+}
+/* Crosshair vertical line via plugin */
+.chart-crosshair{
+  pointer-events:none;
+}
+
+/* ── ANIMATIONS ─────────────────────────────── */
+@keyframes fadeSlideDown{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeSlideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes countUp{from{opacity:0}to{opacity:1}}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,.15)}50%{box-shadow:0 0 0 8px rgba(37,99,235,0)}}
+.kpi-card{animation:fadeSlideDown .45s ease both;}
+.kpi-card:nth-child(1){animation-delay:.05s}
+.kpi-card:nth-child(2){animation-delay:.12s}
+.kpi-card:nth-child(3){animation-delay:.19s}
+.kpi-card:nth-child(4){animation-delay:.26s}
+.kpi-value{transition:color .3s;}
+.card{animation:fadeSlideUp .4s ease both;}
+/* Pareto */
+.pareto-a{background:#d1fae5;color:#065f46;font-weight:700;}
+.pareto-b{background:#dbeafe;color:#1d4ed8;font-weight:600;}
+.pareto-c{background:#f5f6fa;color:#8b92b0;}
+.pareto-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;}
+.pareto-line{border-top:2px dashed #f59e0b;position:relative;}
+/* Radar */
+.chart-legend-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:11px;color:var(--text2);}
 </style>
 </head>
 <body>
@@ -251,15 +319,24 @@ tr:hover td{background:#f8f9ff;}
     <div class="grid-3">
       <div class="card">
         <div class="card-header"><span class="card-title">Aylık Satış Trendi</span><span class="card-sub" id="chart-m-sub"></span></div>
-        <div class="card-body"><div style="position:relative;height:220px"><canvas id="chartMonthly"></canvas></div></div>
+        <div class="card-body"><div class="chart-wrap-outer" style="position:relative">
+  <button class="chart-eye-btn" onclick="toggleLabels('chartMonthly',this)" title="Veri etiketleri">👁</button>
+  <div style="position:relative;height:220px"><canvas id="chartMonthly"></canvas></div>
+</div></div>
       </div>
       <div class="card">
         <div class="card-header"><span class="card-title">Kategori Dağılımı</span></div>
-        <div class="card-body"><div style="position:relative;height:180px"><canvas id="chartCategory"></canvas></div><div class="legend-list" id="catLegend"></div></div>
+        <div class="card-body"><div class="chart-wrap-outer" style="position:relative">
+  <button class="chart-eye-btn" onclick="toggleLabels('chartCategory',this)" title="Veri etiketleri">👁</button>
+  <div style="position:relative;height:180px"><canvas id="chartCategory"></canvas></div>
+</div><div class="legend-list" id="catLegend"></div></div>
       </div>
       <div class="card">
         <div class="card-header"><span class="card-title">M / Y Tipi</span></div>
-        <div class="card-body"><div style="position:relative;height:180px"><canvas id="chartType"></canvas></div><div class="legend-list" id="typeLegend"></div></div>
+        <div class="card-body"><div class="chart-wrap-outer" style="position:relative">
+  <button class="chart-eye-btn" onclick="toggleLabels('chartType',this)" title="Veri etiketleri">👁</button>
+  <div style="position:relative;height:180px"><canvas id="chartType"></canvas></div>
+</div><div class="legend-list" id="typeLegend"></div></div>
       </div>
     </div>
     <div class="grid-2">
@@ -347,13 +424,38 @@ tr:hover td{background:#f8f9ff;}
       <div class="rep-tab ha" onclick="switchRep('HOUSE_ACCOUNT',this,'must')"><span class="tab-dot dot-ha"></span>House Account</div>
       <div class="rep-tab kd" onclick="switchRep('KUTSİ_DEVECİ',this,'must')"><span class="tab-dot dot-kd"></span>Kutsi Deveci</div>
     </div>
+    <!-- Pareto KPI banner -->
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap" id="pareto-kpis"></div>
+    <div class="grid-2" style="margin-bottom:16px">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Pareto Analizi (80/20)</span>
+          <span class="card-sub">Kümülatif gelir eğrisi</span>
+        </div>
+        <div class="card-body"><div class="chart-wrap-outer" style="position:relative">
+  <button class="chart-eye-btn" onclick="toggleLabels('chartMusteri',this)" title="Veri etiketleri">👁</button>
+  <div style="position:relative;height:320px"><canvas id="chartMusteri"></canvas></div>
+</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Müşteri Segmentasyonu</span><span class="card-sub">A=%80 · B=%80–95 · C=%95+</span></div>
+        <div class="table-wrap" style="max-height:360px;overflow-y:auto">
+          <table><thead><tr><th>#</th><th>Müşteri</th><th>Satış €</th><th>Pay %</th><th>Kümülatif %</th><th>Segment</th></tr></thead>
+          <tbody id="must-tbody"></tbody></table></div>
+      </div>
+    </div>
     <div class="grid-2">
-      <div class="card"><div class="card-header"><span class="card-title">Top 10 Müşteri</span></div>
-        <div class="card-body"><div style="position:relative;height:320px"><canvas id="chartMusteri"></canvas></div></div></div>
-      <div class="card"><div class="card-header"><span class="card-title">Müşteri Listesi</span></div>
-        <div class="table-wrap" style="max-height:400px;overflow-y:auto">
-          <table><thead><tr><th>Müşteri</th><th>Satış €</th><th>İşlem</th><th>Ort. €</th></tr></thead>
-          <tbody id="must-tbody"></tbody></table></div></div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Segment Özeti</span></div>
+        <div class="card-body" id="must-segment-summary"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Temsilci Bazında Müşteri Dağılımı</span></div>
+        <div class="card-body"><div class="chart-wrap-outer" style="position:relative">
+  <button class="chart-eye-btn" onclick="toggleLabels('chartMustRep',this)" title="Veri etiketleri">👁</button>
+  <div style="position:relative;height:200px"><canvas id="chartMustRep"></canvas></div>
+</div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -363,14 +465,34 @@ tr:hover td{background:#f8f9ff;}
   <div class="topbar"><div><div class="topbar-title">Temsilci Karşılaştırması</div><div class="topbar-sub">2026 Yılı Performans</div></div></div>
   <div style="padding:24px">
     <div class="grid-4" id="rep-kpi-cards"></div>
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-header"><span class="card-title">Aylık Satış – Temsilci Bazında (Yığılmış)</span></div>
-      <div class="card-body"><div style="position:relative;height:280px"><canvas id="chartRepMonthly"></canvas></div></div>
+    <div class="grid-2" style="margin-bottom:16px">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Kategori Profili – Radar</span><span class="card-sub">Temsilci bazında güçlü/zayıf alanlar</span></div>
+        <div class="card-body"><div class="chart-wrap-outer" style="position:relative">
+  <button class="chart-eye-btn" onclick="toggleLabels('chartRepRadar',this)" title="Veri etiketleri">👁</button>
+  <div style="position:relative;height:300px"><canvas id="chartRepRadar"></canvas></div>
+</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Kategori × Temsilci Karşılaştırması</span><span class="card-sub">Grouped bar</span></div>
+        <div class="card-body"><div class="chart-wrap-outer" style="position:relative">
+  <button class="chart-eye-btn" onclick="toggleLabels('chartRepCatGrouped',this)" title="Veri etiketleri">👁</button>
+  <div style="position:relative;height:300px"><canvas id="chartRepCatGrouped"></canvas></div>
+</div></div>
+      </div>
     </div>
     <div class="grid-2">
-      <div class="card"><div class="card-header"><span class="card-title">Toplam Karşılaştırma</span></div><div class="card-body" id="rep-compare-body"></div></div>
-      <div class="card"><div class="card-header"><span class="card-title">Kategori Dağılımı (Tüm Ekip)</span></div>
-        <div class="card-body"><div style="position:relative;height:260px"><canvas id="chartRepCat"></canvas></div></div></div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Hedef vs Gerçekleşen</span><span class="card-sub">Bullet chart</span></div>
+        <div class="card-body" id="rep-bullet-body"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Aylık Trend – Temsilci Bazında</span></div>
+        <div class="card-body"><div class="chart-wrap-outer" style="position:relative">
+  <button class="chart-eye-btn" onclick="toggleLabels('chartRepMonthly',this)" title="Veri etiketleri">👁</button>
+  <div style="position:relative;height:220px"><canvas id="chartRepMonthly"></canvas></div>
+</div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -424,7 +546,10 @@ tr:hover td{background:#f8f9ff;}
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)" id="kar-kpis"></div>
     <div class="card" style="margin-bottom:16px">
       <div class="card-header"><span class="card-title">Aylık Hedef – Gerçekleşen Karşılaştırması</span></div>
-      <div class="card-body"><div style="position:relative;height:280px"><canvas id="chartComparison"></canvas></div></div>
+      <div class="card-body"><div class="chart-wrap-outer" style="position:relative">
+  <button class="chart-eye-btn" onclick="toggleLabels('chartComparison',this)" title="Veri etiketleri">👁</button>
+  <div style="position:relative;height:280px"><canvas id="chartComparison"></canvas></div>
+</div></div>
     </div>
     <div class="grid-2">
       <div class="card"><div class="card-header"><span class="card-title">Aylık Detay</span></div><div class="card-body" id="kar-monthly"></div></div>
@@ -453,12 +578,18 @@ tr:hover td{background:#f8f9ff;}
     <div class="grid-2" style="margin-bottom:16px">
       <div class="card">
         <div class="card-header"><span class="card-title">Çeyrek Bazında Pipeline</span></div>
-        <div class="card-body"><div style="position:relative;height:220px"><canvas id="chartPotCeyrek"></canvas></div></div>
+        <div class="card-body"><div class="chart-wrap-outer" style="position:relative">
+  <button class="chart-eye-btn" onclick="toggleLabels('chartPotCeyrek',this)" title="Veri etiketleri">👁</button>
+  <div style="position:relative;height:220px"><canvas id="chartPotCeyrek"></canvas></div>
+</div></div>
       </div>
       <div class="card">
         <div class="card-header"><span class="card-title">Aşama Dağılımı</span></div>
         <div class="card-body">
-          <div style="position:relative;height:160px"><canvas id="chartPotAsama"></canvas></div>
+          <div class="chart-wrap-outer" style="position:relative">
+  <button class="chart-eye-btn" onclick="toggleLabels('chartPotAsama',this)" title="Veri etiketleri">👁</button>
+  <div style="position:relative;height:160px"><canvas id="chartPotAsama"></canvas></div>
+</div>
           <div class="legend-list" id="potLegend"></div>
         </div>
       </div>
@@ -859,8 +990,6 @@ function catTotals(data){const c={};data.forEach(r=>{const cat=getCat(r.satis_el
 function filterByRep(page){const rep=REP_ST[page];return rep==='ALL'?salesData:salesData.filter(r=>r.rep===rep);}
 function save(){try{localStorage.setItem('triobrc_v3',JSON.stringify(salesData));}catch(e){}}
 function savePot(){try{localStorage.setItem('triobrc_pot',JSON.stringify(potData));}catch(e){}}
-function saveTargets(){try{localStorage.setItem('triobrc_targets_v4',JSON.stringify(targets));}catch(e){}}
-
 // Computed target helpers
 function getRepMonthTarget(rep,m){return(targets.rep[rep]&&targets.rep[rep][m])||0;}
 function getTotalMonthTarget(m){return REPS_ORDER.reduce((s,r)=>s+getRepMonthTarget(r,m),0);}
@@ -868,6 +997,30 @@ function getRepYearTarget(rep){return MPADS.reduce((s,m)=>s+getRepMonthTarget(re
 function getTotalYearTarget(){return REPS_ORDER.reduce((s,r)=>s+getRepYearTarget(r),0);}
 // Get active month target for a rep or all
 function getMonthTarget(rep,m){return rep==='ALL'?getTotalMonthTarget(m):getRepMonthTarget(rep,m);}
+
+
+// ── Animated counter for KPI values ─────────────────────────
+function animateCounter(el, target, prefix='€', duration=600){
+  if(!el) return;
+  const start = Date.now();
+  const startVal = 0;
+  const tick = () => {
+    const elapsed = Date.now() - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+    const current = Math.round(startVal + (target - startVal) * ease);
+    el.textContent = prefix + current.toLocaleString('tr-TR');
+    if(progress < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+function animateKPIs(){
+  document.querySelectorAll('.kpi-value[data-target]').forEach(el => {
+    const target = parseFloat(el.dataset.target) || 0;
+    const prefix = el.dataset.prefix || '€';
+    animateCounter(el, target, prefix);
+  });
+}
 
 // Toast
 function showToast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type?'t'+type[0]:'');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
@@ -904,6 +1057,103 @@ function switchRep(rep,el,page){
 // DASHBOARD
 // ============================================================
 let chM,chC,chT;
+
+
+
+// ── Eye toggle: show/hide value labels on chart ─────────────
+const _labelStates = {};
+function toggleLabels(canvasId, btn){
+  btn.classList.toggle('active');
+  const show = btn.classList.contains('active');
+  _labelStates[canvasId] = show;
+  const c = Chart.getChart(canvasId);
+  if(!c) return;
+  // For bar/line charts: show data values above bars
+  const skipTypes = ['doughnut','pie','radar','polarArea'];
+  if(skipTypes.includes(c.config.type)){
+    btn.classList.remove('active');
+    _labelStates[canvasId] = false;
+    return;
+  }
+  c.data.datasets.forEach(ds => {
+    if(show){
+      ds._savedBgColor = ds.backgroundColor;
+      // Use Chart.js built-in datalabels via plugin option if available
+      // Otherwise we handle it via afterDraw in update cycle
+    }
+  });
+  c.update();
+}
+
+// Inline afterDraw label painter (safe, no global plugin registration)
+function paintLabels(chart){
+  const id = chart.canvas.id;
+  if(!_labelStates[id]) return;
+  const skipTypes = ['doughnut','pie','radar','polarArea'];
+  if(skipTypes.includes(chart.config.type)) return;
+  const ctx = chart.ctx;
+  ctx.save();
+  ctx.font = 'bold 10px Arial,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  try{
+    chart.data.datasets.forEach((ds, di) => {
+      const meta = chart.getDatasetMeta(di);
+      if(!meta || meta.hidden) return;
+      meta.data.forEach((el, i) => {
+        if(!el) return;
+        const v = ds.data[i];
+        if(!v || v <= 0) return;
+        const lbl = v >= 1000 ? '€'+Math.round(v/1000)+'K' : '€'+Math.round(v);
+        const x = el.x, y = el.y - 4;
+        const w = ctx.measureText(lbl).width + 8;
+        // white bg
+        ctx.fillStyle = 'rgba(255,255,255,0.88)';
+        ctx.fillRect(x-w/2, y-13, w, 13);
+        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x-w/2, y-13, w, 13);
+        ctx.fillStyle = '#111';
+        ctx.fillText(lbl, x, y-1);
+      });
+    });
+  }catch(ex){}
+  ctx.restore();
+}
+
+// ── Chart crosshair + sync plugin ─────────────────────────
+const CrosshairSyncPlugin = {
+  id: 'crosshairSync',
+  _charts: [],
+  register(chart){ this._charts.push(chart); },
+  unregister(chart){ this._charts = this._charts.filter(c=>c!==chart); },
+  afterEvent(chart, args){
+    const evt = args.event;
+    if(!['mousemove','mouseout'].includes(evt.type)) return;
+    if(evt.type === 'mouseout'){
+      chart.canvas.style.cursor = 'default';
+      return;
+    }
+    chart.canvas.style.cursor = 'crosshair';
+  }
+};
+
+// Sync tooltip across dashboard charts
+function syncChartTooltip(sourceChart, x, y){
+  [chM, chC, chT].forEach(c => {
+    if(!c || c === sourceChart) return;
+    try {
+      const pt = c.getElementsAtEventForMode(
+        {x, y}, 'index', {intersect:false}, false
+      );
+      if(pt.length){
+        c.tooltip.setActiveElements(pt.map(p=>({datasetIndex:p.datasetIndex,index:p.index})), {x,y});
+        c.update('none');
+      }
+    } catch(e){}
+  });
+}
+
 function renderDashboard(){
   const data=filterByRep('dash');
   const rep=REP_ST['dash'];
@@ -920,20 +1170,22 @@ function renderDashboard(){
 
   document.getElementById('dash-kpis').innerHTML=`
     <div class="kpi-card c-blue"><div class="kpi-label">Toplam Satış (2026)</div>
-      <div class="kpi-value" style="color:${repColor}">${fmt(total)}</div>
+      <div class="kpi-value" style="color:${repColor}" data-target="${Math.round(total)}" data-prefix="€">${fmt(total)}</div>
       <div class="kpi-sub">${data.length} hareket</div>
       ${pct!==null?`<span class="kpi-badge ${pct>=80?'badge-up':pct>=50?'badge-neutral':'badge-down'}">${pct}% tamamlandı</span>`:''}
     </div>
     <div class="kpi-card c-green"><div class="kpi-label">Haziran 2026</div>
-      <div class="kpi-value" style="color:var(--hk)">${fmt(haz)}</div>
+      <div class="kpi-value" style="color:var(--hk)" data-target="${Math.round(haz)}" data-prefix="€">${fmt(haz)}</div>
       <div class="kpi-sub">${hazData.length} hareket</div>
       ${getMonthTarget(rep,'06')>0?`<span class="kpi-badge ${haz>=getMonthTarget(rep,'06')?'badge-up':'badge-down'}">${Math.round(haz/getMonthTarget(rep,'06')*100)}% hedef</span>`:'<span class="kpi-badge badge-neutral">Son ay</span>'}
     </div>
     <div class="kpi-card c-purple"><div class="kpi-label">Aylık Ortalama</div>
-      <div class="kpi-value" style="color:var(--ha)">${fmt(avg)}</div><div class="kpi-sub">Oca–Haz 2026</div></div>
+      <div class="kpi-value" style="color:var(--ha)" data-target="${Math.round(avg)}" data-prefix="€">${fmt(avg)}</div>
+      <div class="kpi-sub">Oca–Haz 2026</div></div>
     <div class="kpi-card c-gray"><div class="kpi-label">${yHedef>0?'Yıllık Hedef':'Aktif Müşteri'}</div>
-      <div class="kpi-value">${yHedef>0?fmt(yHedef):new Set(data.map(r=>r.cari)).size+' adet'}</div>
+      <div class="kpi-value" data-target="${yHedef>0?Math.round(yHedef):new Set(data.map(r=>r.cari)).size}" data-prefix="${yHedef>0?'€':''}">${yHedef>0?fmt(yHedef):new Set(data.map(r=>r.cari)).size+' adet'}</div>
       <div class="kpi-sub">${yHedef>0?'Kalan: '+fmt(Math.max(0,yHedef-total)):'Farklı müşteri'}</div></div>`;
+  setTimeout(animateKPIs, 50);
 
   // Monthly chart
   if(chM)chM.destroy();
@@ -941,19 +1193,38 @@ function renderDashboard(){
   const mH=months6.map(m=>getMonthTarget(rep,m));
   const ds=[{label:'Gerçekleşen',data:mData,backgroundColor:repColor+'25',borderColor:repColor,borderWidth:2,borderRadius:5,fill:true,tension:.35}];
   if(mH.some(v=>v>0))ds.push({label:'Hedef',data:mH,type:'line',borderColor:'#f59e0b',borderWidth:2,pointRadius:4,fill:false,tension:.3,borderDash:[5,3]});
-  chM=new Chart(document.getElementById('chartMonthly').getContext('2d'),{type:'bar',data:{labels:months6.map(m=>MONTHS[parseInt(m)]),datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:mH.some(v=>v>0),labels:{color:'#4a4f6a',font:{size:11}}}},scales:{x:{ticks:{color:'#8b92b0'},grid:{display:false}},y:{ticks:{color:'#8b92b0',callback:v=>'€'+fmtN(v)},grid:{color:'#f0f2f8'}}}}});
+  chM=new Chart(document.getElementById('chartMonthly').getContext('2d'),{
+    type:'bar',
+    data:{labels:months6.map(m=>MONTHS[parseInt(m)]),datasets:ds},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      animation:{onComplete(e){paintLabels(e.chart);}},
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:mH.some(v=>v>0),labels:{color:'#4a4f6a',font:{size:11}}},
+        tooltip:{
+          mode:'index',intersect:false,
+          callbacks:{label:(ctx)=>' '+ctx.dataset.label+': €'+fmtN(ctx.parsed.y)}
+        }
+      },
+      scales:{
+        x:{ticks:{color:'#8b92b0'},grid:{display:false}},
+        y:{ticks:{color:'#8b92b0',callback:v=>'€'+fmtN(v)},grid:{color:'#f0f2f8'}}
+      }
+    }
+  });
   document.getElementById('chart-m-sub').textContent=fmt(total);
 
   // Category donut
   if(chC)chC.destroy();
   const cats=catTotals(data);const cKeys=Object.keys(cats).sort((a,b)=>cats[b]-cats[a]).slice(0,6);
-  chC=new Chart(document.getElementById('chartCategory').getContext('2d'),{type:'doughnut',data:{labels:cKeys,datasets:[{data:cKeys.map(k=>Math.round(cats[k])),backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false}}}});
+  chC=new Chart(document.getElementById('chartCategory').getContext('2d'),{type:'doughnut',data:{labels:cKeys,datasets:[{data:cKeys.map(k=>Math.round(cats[k])),backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:(ctx)=>ctx.label+': €'+fmtN(ctx.parsed)}}}}});
   document.getElementById('catLegend').innerHTML=cKeys.slice(0,4).map((k,i)=>`<div class="legend-item"><div class="legend-dot" style="background:${PAL[i]}"></div><span class="legend-label">${k}</span><span class="legend-val">${fmt(cats[k])}</span></div>`).join('');
 
   // Type donut
   if(chT)chT.destroy();
   let mTT=0,yTT=0;data.forEach(r=>{const c=getCat(r.satis_elemani);if(c.startsWith('M.'))mTT+=r.tutar;else yTT+=r.tutar;});
-  chT=new Chart(document.getElementById('chartType').getContext('2d'),{type:'doughnut',data:{labels:['Müşteri (M)','Yönetim (Y)'],datasets:[{data:[Math.round(mTT),Math.round(yTT)],backgroundColor:['#2563eb','#7c3aed'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false}}}});
+  chT=new Chart(document.getElementById('chartType').getContext('2d'),{type:'doughnut',data:{labels:['Müşteri (M)','Yönetim (Y)'],datasets:[{data:[Math.round(mTT),Math.round(yTT)],backgroundColor:['#2563eb','#7c3aed'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:(ctx)=>ctx.label+': €'+fmtN(ctx.parsed)}}}}});
   document.getElementById('typeLegend').innerHTML=`<div class="legend-item"><div class="legend-dot" style="background:#2563eb"></div><span class="legend-label">Müşteri (M)</span><span class="legend-val">${fmt(mTT)}</span></div><div class="legend-item"><div class="legend-dot" style="background:#7c3aed"></div><span class="legend-label">Yönetim (Y)</span><span class="legend-val">${fmt(yTT)}</span></div>`;
 
   // Top 5
@@ -1122,15 +1393,142 @@ function saveAddModal(){
 // ============================================================
 // MÜŞTERİLER
 // ============================================================
-let chMust;
+let chMust, chMustRep;
 function renderMusteriler(){
-  const data=filterByRep('must');
-  const cust={};data.forEach(r=>{if(!cust[r.cari])cust[r.cari]={total:0,cnt:0};cust[r.cari].total+=r.tutar;cust[r.cari].cnt++;});
-  const sorted=Object.entries(cust).sort((a,b)=>b[1].total-a[1].total);
-  const top10=sorted.slice(0,10);
-  if(chMust)chMust.destroy();
-  chMust=new Chart(document.getElementById('chartMusteri').getContext('2d'),{type:'bar',data:{labels:top10.map(([n])=>shortN(n,22)),datasets:[{data:top10.map(([,v])=>Math.round(v.total)),backgroundColor:PAL.map(c=>c+'cc'),borderColor:PAL,borderWidth:1,borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b92b0',callback:v=>'€'+fmtN(v)},grid:{color:'#f0f2f8'}},y:{ticks:{color:'#4a4f6a',font:{size:10}},grid:{display:false}}}}});
-  document.getElementById('must-tbody').innerHTML=sorted.map(([n,v])=>`<tr><td class="td-name" title="${n}">${shortN(n)}</td><td class="td-green">${fmt(v.total)}</td><td class="td-mono">${v.cnt}</td><td class="td-mono">${fmt(v.total/v.cnt)}</td></tr>`).join('');
+  const data = filterByRep('must');
+  const cust = {};
+  data.forEach(r=>{
+    if(!cust[r.cari]) cust[r.cari]={total:0,cnt:0,reps:{}};
+    cust[r.cari].total += r.tutar;
+    cust[r.cari].cnt++;
+    cust[r.cari].reps[r.rep] = (cust[r.cari].reps[r.rep]||0)+r.tutar;
+  });
+  const sorted = Object.entries(cust).sort((a,b)=>b[1].total-a[1].total);
+  const grandTotal = sorted.reduce((s,[,v])=>s+v.total,0);
+
+  // Pareto cumulative
+  let cumSum = 0;
+  const paretoData = sorted.map(([n,v])=>{
+    cumSum += v.total;
+    const cumPct = grandTotal>0 ? cumSum/grandTotal*100 : 0;
+    const share  = grandTotal>0 ? v.total/grandTotal*100 : 0;
+    const seg    = cumPct<=80?'A':cumPct<=95?'B':'C';
+    return {name:n, total:v.total, cnt:v.cnt, share, cumPct, seg, reps:v.reps};
+  });
+
+  // Pareto KPI banner
+  const segA = paretoData.filter(d=>d.seg==='A');
+  const segB = paretoData.filter(d=>d.seg==='B');
+  const segC = paretoData.filter(d=>d.seg==='C');
+  document.getElementById('pareto-kpis').innerHTML = [
+    {label:'Segment A – Kritik',desc:`${segA.length} müşteri → Gelirin %80'i`,val:fmt(segA.reduce((s,d)=>s+d.total,0)),color:'#059669',bg:'#d1fae5'},
+    {label:'Segment B – Önemli',desc:`${segB.length} müşteri → Gelirin %15'i`,val:fmt(segB.reduce((s,d)=>s+d.total,0)),color:'#2563eb',bg:'#dbeafe'},
+    {label:'Segment C – Uzun Kuyruk',desc:`${segC.length} müşteri → Gelirin %5'i`,val:fmt(segC.reduce((s,d)=>s+d.total,0)),color:'#8b92b0',bg:'#f0f2f8'},
+  ].map(s=>`<div class="kpi-card" style="border-top:3px solid ${s.color};flex:1;min-width:200px;animation:fadeSlideDown .4s ease both">
+    <div class="kpi-label" style="color:${s.color}">${s.label}</div>
+    <div class="kpi-value" style="color:${s.color};font-size:18px">${s.val}</div>
+    <div class="kpi-sub">${s.desc}</div>
+  </div>`).join('');
+
+  // Pareto chart (bar + line)
+  // Destroy existing chart on this canvas (handles page switch)
+  const _ep=Chart.getChart('chartMusteri'); if(_ep)_ep.destroy(); if(chMust){try{chMust.destroy();}catch(e){}}
+  const top15 = paretoData.slice(0,15);
+  const ctx = document.getElementById('chartMusteri').getContext('2d');
+  chMust = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels: top15.map(d=>shortN(d.name,18)),
+      datasets:[
+        {
+          label:'Satış €',
+          data: top15.map(d=>Math.round(d.total)),
+          backgroundColor: top15.map(d=>d.seg==='A'?'#05966980':d.seg==='B'?'#2563eb80':'#8b92b080'),
+          borderColor:     top15.map(d=>d.seg==='A'?'#059669':d.seg==='B'?'#2563eb':'#8b92b0'),
+          borderWidth:1, borderRadius:5, yAxisID:'y'
+        },
+        {
+          label:'Kümülatif %',
+          data: top15.map(d=>Math.round(d.cumPct*10)/10),
+          type:'line',
+          borderColor:'#f59e0b', borderWidth:2.5,
+          pointBackgroundColor:'#f59e0b', pointRadius:4,
+          fill:false, tension:.35, yAxisID:'y2'
+        }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      animation:{duration:800, easing:'easeOutQuart', onComplete(e){paintLabels(e.chart);},
+        delay:(ctx)=>ctx.dataIndex*35},
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:true,position:'top',labels:{color:'#4a4f6a',font:{size:11}}},
+        tooltip:{callbacks:{
+          label:(ctx)=>ctx.dataset.label==='Kümülatif %'?ctx.parsed.y.toFixed(1)+'%':'€'+fmtN(ctx.parsed.y)
+        }},
+        annotation:{
+          annotations:{
+            line80:{type:'line',yMin:80,yMax:80,yScaleID:'y2',
+              borderColor:'#ef4444',borderWidth:1.5,borderDash:[5,4],
+              label:{content:'%80 Eşiği',enabled:true,position:'end',color:'#ef4444',font:{size:10}}}
+          }
+        }
+      },
+      scales:{
+        x:{ticks:{color:'#8b92b0',font:{size:10},maxRotation:40},grid:{display:false}},
+        y:{position:'left',ticks:{color:'#8b92b0',callback:v=>'€'+fmtN(v)},grid:{color:'#f0f2f8'}},
+        y2:{position:'right',min:0,max:100,ticks:{color:'#f59e0b',callback:v=>v+'%'},grid:{display:false}}
+      }
+    }
+  });
+
+  // Table with Pareto segments
+  document.getElementById('must-tbody').innerHTML = paretoData.map((d,i)=>{
+    const segCls = d.seg==='A'?'pareto-a':d.seg==='B'?'pareto-b':'pareto-c';
+    const isParetoLine = i>0 && paretoData[i-1].cumPct<80 && d.cumPct>=80;
+    return `${isParetoLine?'<tr><td colspan="6" style="padding:0;background:#fef3c7;text-align:center;font-size:10px;font-weight:700;color:#92400e;letter-spacing:.5px">── %80 EŞİĞİ ──</td></tr>':''}
+    <tr class="${i<segA.length?'pareto-line':''}">
+      <td class="td-mono" style="color:var(--text3)">${i+1}</td>
+      <td class="td-name" title="${d.name}">${shortN(d.name,30)}</td>
+      <td class="td-green">${fmt(d.total)}</td>
+      <td class="td-mono">${d.share.toFixed(1)}%</td>
+      <td class="td-mono">${d.cumPct.toFixed(1)}%</td>
+      <td><span class="pareto-badge ${segCls}">Seg. ${d.seg}</span></td>
+    </tr>`;
+  }).join('');
+
+  // Segment summary
+  document.getElementById('must-segment-summary').innerHTML = ['A','B','C'].map(seg=>{
+    const items = paretoData.filter(d=>d.seg===seg);
+    const tot = items.reduce((s,d)=>s+d.total,0);
+    const color = seg==='A'?'#059669':seg==='B'?'#2563eb':'#8b92b0';
+    const pct  = grandTotal>0?Math.round(tot/grandTotal*100):0;
+    return`<div class="progress-wrap">
+      <div class="progress-label">
+        <span style="font-weight:700;color:${color}">Segment ${seg} — ${items.length} müşteri</span>
+        <span class="pct" style="color:${color}">${fmt(tot)} (${pct}%)</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div style="font-size:10px;color:var(--text3);margin-top:3px">Ort. ${items.length>0?fmt(tot/items.length):0} / müşteri</div>
+    </div>`;
+  }).join('');
+
+  // Rep distribution donut
+  const _emr=Chart.getChart('chartMustRep'); if(_emr)_emr.destroy(); if(chMustRep){try{chMustRep.destroy();}catch(e){}}
+  const repTots = REPS_ORDER.map(rep=>data.filter(r=>r.rep===rep).reduce((s,r)=>s+r.tutar,0));
+  chMustRep = new Chart(document.getElementById('chartMustRep').getContext('2d'),{
+    type:'doughnut',
+    data:{labels:REPS_ORDER.map(r=>REPS[r].label),datasets:[{
+      data:repTots.map(v=>Math.round(v)),
+      backgroundColor:REPS_ORDER.map(r=>REPS[r].color+'cc'),
+      borderColor:REPS_ORDER.map(r=>REPS[r].color),
+      borderWidth:2
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'58%',
+      animation:{duration:700,easing:'easeOutQuart'},
+      plugins:{legend:{position:'right',labels:{color:'#4a4f6a',font:{size:11},padding:10}}}}
+  });
 }
 
 // ============================================================
@@ -1138,25 +1536,146 @@ function renderMusteriler(){
 // ============================================================
 let chRM,chRC;
 function renderTemsilciler(){
-  document.getElementById('rep-kpi-cards').innerHTML=REPS_ORDER.map(rep=>{
-    const recs=salesData.filter(r=>r.rep===rep);
-    const tot=recs.reduce((s,r)=>s+r.tutar,0);
-    const yH=getRepYearTarget(rep);const p=yH>0?Math.round(tot/yH*100):null;
-    const r=REPS[rep];
-    return`<div class="kpi-card" style="border-top:3px solid ${r.color}"><div class="kpi-label" style="color:${r.color}">${r.label}</div><div class="kpi-value" style="color:${r.color}">${fmt(tot)}</div><div class="kpi-sub">${recs.length} hareket</div>${p!==null?`<span class="kpi-badge ${p>=80?'badge-up':'badge-down'}">${p}% hedef</span>`:''}</div>`;
+  // KPI cards with animation
+  document.getElementById('rep-kpi-cards').innerHTML = REPS_ORDER.map((rep,i)=>{
+    const recs = salesData.filter(r=>r.rep===rep);
+    const tot  = recs.reduce((s,r)=>s+r.tutar,0);
+    const yH   = getRepYearTarget(rep);
+    const p    = yH>0?Math.round(tot/yH*100):null;
+    const r    = REPS[rep];
+    return`<div class="kpi-card" style="border-top:3px solid ${r.color};animation-delay:${i*0.07}s">
+      <div class="kpi-label" style="color:${r.color}">${r.label}</div>
+      <div class="kpi-value" style="color:${r.color};font-size:20px" data-target="${Math.round(tot)}" data-prefix="€">${fmt(tot)}</div>
+      <div class="kpi-sub">${recs.length} hareket</div>
+      ${p!==null?`<span class="kpi-badge ${p>=80?'badge-up':'badge-down'}">${p}% hedef</span>`:''}
+    </div>`;
   }).join('');
-  if(chRM)chRM.destroy();
-  const months6=['01','02','03','04','05','06'];
-  chRM=new Chart(document.getElementById('chartRepMonthly').getContext('2d'),{type:'bar',data:{labels:months6.map(m=>MONTHS[parseInt(m)]),datasets:REPS_ORDER.map(rep=>{const mt=mTotals(salesData.filter(r=>r.rep===rep));return{label:REPS[rep].label,data:months6.map(m=>Math.round(mt[m]||0)),backgroundColor:REPS[rep].color+'cc',borderColor:REPS[rep].color,borderWidth:1,borderRadius:3};})},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#4a4f6a',font:{size:11}}}},scales:{x:{stacked:true,ticks:{color:'#8b92b0'},grid:{display:false}},y:{stacked:true,ticks:{color:'#8b92b0',callback:v=>'€'+fmtN(v)},grid:{color:'#f0f2f8'}}}}});
-  const totals=REPS_ORDER.map(rep=>salesData.filter(r=>r.rep===rep).reduce((s,r)=>s+r.tutar,0));
-  const maxT=Math.max(...totals)||1;
-  document.getElementById('rep-compare-body').innerHTML=REPS_ORDER.map((rep,i)=>`<div class="cmp-row"><span class="cmp-label">${REPS[rep].label}</span><div class="cmp-bar-wrap"><div class="cmp-fill" style="width:${totals[i]/maxT*100}%;background:${REPS[rep].color}"></div></div><span class="cmp-val">${fmt(totals[i])}</span></div>`).join('');
-  if(chRC)chRC.destroy();
-  const allCats={};salesData.forEach(r=>{const c=getCat(r.satis_elemani)||'Diğer';allCats[c]=(allCats[c]||0)+r.tutar;});
-  const cKeys=Object.keys(allCats).sort((a,b)=>allCats[b]-allCats[a]);
-  chRC=new Chart(document.getElementById('chartRepCat').getContext('2d'),{type:'bar',data:{labels:cKeys,datasets:[{data:cKeys.map(k=>Math.round(allCats[k])),backgroundColor:PAL,borderRadius:5,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b92b0',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#8b92b0',callback:v=>'€'+fmtN(v)},grid:{color:'#f0f2f8'}}}}});
-}
+  setTimeout(animateKPIs,50);
 
+  const months6 = ['01','02','03','04','05','06'];
+  const CAT_KEYS = ['M. KİMYASAL','M. SÖZLEŞME','M. EKİPMAN','Y. KİMYASAL','Y. SÖZLEŞME','Y. EKİPMAN'];
+  const CAT_SHORT = ['M.Kim','M.Söz','M.Eki','Y.Kim','Y.Söz','Y.Eki'];
+
+  // ── RADAR CHART: Kategori profili ──────────────────────────
+  const _ec1=Chart.getChart('chartRepRadar'); if(_ec1)_ec1.destroy(); if(chRM){try{chRM.destroy();}catch(e){}}
+  const radarDatasets = REPS_ORDER.map(rep=>{
+    const recs = salesData.filter(r=>r.rep===rep);
+    const catTot = CAT_KEYS.map(cat=>recs.filter(r=>getCat(r.satis_elemani)===cat).reduce((s,r)=>s+r.tutar,0));
+    const maxVal = Math.max(...catTot)||1;
+    return {
+      label: REPS[rep].label,
+      data: catTot.map(v=>Math.round(v/maxVal*100)),
+      borderColor: REPS[rep].color,
+      backgroundColor: REPS[rep].color+'25',
+      borderWidth:2, pointRadius:4,
+      pointBackgroundColor: REPS[rep].color
+    };
+  });
+  chRM = new Chart(document.getElementById('chartRepRadar').getContext('2d'),{
+    type:'radar',
+    data:{labels:CAT_SHORT, datasets:radarDatasets},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      animation:{duration:900, easing:'easeOutQuart'},
+      plugins:{legend:{position:'bottom',labels:{color:'#4a4f6a',font:{size:11},padding:12}}},
+      scales:{r:{
+        beginAtZero:true,
+        ticks:{display:false},
+        grid:{color:'#e2e6f0'},
+        pointLabels:{color:'#4a4f6a',font:{size:11}},
+        angleLines:{color:'#e2e6f0'}
+      }}
+    }
+  });
+
+  // ── GROUPED BAR: Kategori × Temsilci ──────────────────────
+  const _ec2=Chart.getChart('chartRepCatGrouped'); if(_ec2)_ec2.destroy(); if(chRC){try{chRC.destroy();}catch(e){}}
+  const allCatTots = REPS_ORDER.map(rep=>{
+    const recs = salesData.filter(r=>r.rep===rep);
+    return CAT_KEYS.map(cat=>recs.filter(r=>getCat(r.satis_elemani)===cat).reduce((s,r)=>s+r.tutar,0));
+  });
+  chRC = new Chart(document.getElementById('chartRepCatGrouped').getContext('2d'),{
+    type:'bar',
+    data:{
+      labels: CAT_SHORT,
+      datasets: REPS_ORDER.map((rep,i)=>({
+        label: REPS[rep].label,
+        data: allCatTots[i].map(v=>Math.round(v)),
+        backgroundColor: REPS[rep].color+'cc',
+        borderColor: REPS[rep].color,
+        borderWidth:1, borderRadius:4
+      }))
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      animation:{duration:800, easing:'easeOutQuart', onComplete(e){paintLabels(e.chart);}, delay:(ctx)=>ctx.dataIndex*60+ctx.datasetIndex*15},
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{position:'bottom',labels:{color:'#4a4f6a',font:{size:10},padding:10}}},
+      scales:{
+        x:{ticks:{color:'#8b92b0',font:{size:10}},grid:{display:false}},
+        y:{ticks:{color:'#8b92b0',callback:v=>'€'+fmtN(v)},grid:{color:'#f0f2f8'}}
+      }
+    }
+  });
+
+  // ── BULLET CHART: Hedef vs Gerçek ─────────────────────────
+  document.getElementById('rep-bullet-body').innerHTML = REPS_ORDER.map(rep=>{
+    const recs = salesData.filter(r=>r.rep===rep);
+    const tot  = recs.reduce((s,r)=>s+r.tutar,0);
+    const yH   = getRepYearTarget(rep);
+    const p    = yH>0?Math.min(100,Math.round(tot/yH*100)):null;
+    const col  = REPS[rep].color;
+    const hazTot = recs.filter(r=>r.tarih&&r.tarih.startsWith('2026-06')).reduce((s,r)=>s+r.tutar,0);
+    return`<div style="margin-bottom:18px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+        <span style="font-weight:700;color:${col};font-size:13px">${REPS[rep].label}</span>
+        <span style="font-family:var(--mono);font-size:12px;color:var(--text)">${fmt(tot)}${yH>0?' / '+fmt(yH):''}</span>
+      </div>
+      ${yH>0?`
+      <div style="position:relative;height:20px;background:var(--surface2);border-radius:6px;overflow:hidden">
+        <div style="position:absolute;left:0;top:0;height:100%;width:${p}%;background:${col};border-radius:6px;transition:width .8s ease"></div>
+        <div style="position:absolute;left:80%;top:-2px;height:calc(100%+4px);width:2px;background:#ef4444;opacity:.7"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:10px;color:var(--text3)">
+        <span>%${p} tamamlandı</span>
+        <span style="color:#ef4444">%80 hedef çizgisi</span>
+      </div>
+      `:`<div style="height:20px;background:var(--surface2);border-radius:6px;display:flex;align-items:center;padding:0 10px;font-size:11px;color:var(--text3)">Hedef girilmedi — Gerçekleşen: ${fmt(tot)}</div>`}
+      <div style="font-size:10px;color:var(--text3);margin-top:3px">Haziran: ${fmt(hazTot)} · ${recs.length} hareket</div>
+    </div>`;
+  }).join('');
+
+  // ── LINE CHART: Aylık trend ────────────────────────────────
+  const existingLine = Chart.getChart('chartRepMonthly');
+  if(existingLine) existingLine.destroy();
+  new Chart(document.getElementById('chartRepMonthly').getContext('2d'),{
+    type:'line',
+    data:{
+      labels: months6.map(m=>MONTHS[parseInt(m)]),
+      datasets: REPS_ORDER.map(rep=>{
+        const mt = mTotals(salesData.filter(r=>r.rep===rep));
+        return {
+          label: REPS[rep].label,
+          data: months6.map(m=>Math.round(mt[m]||0)),
+          borderColor: REPS[rep].color,
+          backgroundColor: REPS[rep].color+'15',
+          borderWidth:2.5, pointRadius:5, pointHoverRadius:7,
+          fill:true, tension:.4
+        };
+      })
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      animation:{duration:900, easing:'easeOutQuart', onComplete(e){paintLabels(e.chart);}, delay:(ctx)=>ctx.dataIndex*50},
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{position:'bottom',labels:{color:'#4a4f6a',font:{size:11},padding:12}}},
+      scales:{
+        x:{ticks:{color:'#8b92b0'},grid:{display:false}},
+        y:{ticks:{color:'#8b92b0',callback:v=>'€'+fmtN(v)},grid:{color:'#f0f2f8'}}
+      }
+    }
+  });
+}
 // ============================================================
 // HEDEFLER — PER REP PER MONTH TABLE
 // ============================================================
@@ -1505,7 +2024,20 @@ function renderKarsilastirma(){
   chCmp=new Chart(document.getElementById('chartComparison').getContext('2d'),{type:'bar',data:{labels:months6.map(m=>MONTHS[parseInt(m)]),datasets:[
     {label:'Gerçekleşen',data:months6.map(m=>Math.round(mAct[m]||0)),backgroundColor:repColor+'30',borderColor:repColor,borderWidth:2,borderRadius:5},
     ...(mH.some(v=>v>0)?[{label:'Hedef',data:mH,backgroundColor:'#f59e0b20',borderColor:'#f59e0b',borderWidth:2,borderRadius:5}]:[])
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#4a4f6a'}}},scales:{x:{ticks:{color:'#8b92b0'},grid:{display:false}},y:{ticks:{color:'#8b92b0',callback:v=>'€'+fmtN(v)},grid:{color:'#f0f2f8'}}}}});
+  ]},options:{
+      responsive:true,maintainAspectRatio:false,
+      animation:{onComplete(e){paintLabels(e.chart);}},
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:'#4a4f6a'}},
+        tooltip:{mode:'index',intersect:false,
+          callbacks:{label:(ctx)=>' '+ctx.dataset.label+': €'+fmtN(ctx.parsed.y)}}
+      },
+      scales:{
+        x:{ticks:{color:'#8b92b0'},grid:{display:false}},
+        y:{ticks:{color:'#8b92b0',callback:v=>'€'+fmtN(v)},grid:{color:'#f0f2f8'}}
+      }
+    }});
   document.getElementById('kar-monthly').innerHTML=`<div style="display:grid;grid-template-columns:80px 1fr 1fr 80px;gap:8px;padding:6px 0;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;color:var(--text3)"><span>AY</span><span>HEDEF</span><span>GERÇEK</span><span>FARK</span></div>`+
     months6.map(m=>{
       const h=getMonthTarget(rep,m);const a=mAct[m]||0;const diff=a-h;
@@ -1554,7 +2086,7 @@ function renderPotansiyel(){
   chPotC=new Chart(document.getElementById('chartPotCeyrek').getContext('2d'),{type:'bar',data:{labels:qKeys,datasets:[
     {label:'Toplam Tahmin',data:qTotals.map(v=>Math.round(v)),backgroundColor:'#f59e0b33',borderColor:'#f59e0b',borderWidth:2,borderRadius:5},
     {label:'Ağırlıklı',data:qAg.map(v=>Math.round(v)),backgroundColor:'#10b98133',borderColor:'#10b981',borderWidth:2,borderRadius:5}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#4a4f6a',font:{size:11}}}},scales:{x:{ticks:{color:'#8b92b0'},grid:{display:false}},y:{ticks:{color:'#8b92b0',callback:v=>'€'+fmtN(v)},grid:{color:'#f0f2f8'}}}}});
+  ]},options:{animation:{onComplete(e){paintLabels(e.chart);}},interaction:{mode:'index',intersect:false},responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#4a4f6a',font:{size:11}}}},scales:{x:{ticks:{color:'#8b92b0'},grid:{display:false}},y:{ticks:{color:'#8b92b0',callback:v=>'€'+fmtN(v)},grid:{color:'#f0f2f8'}}}}});
 
   // Asama donut
   if(chPotA)chPotA.destroy();
@@ -1752,6 +2284,9 @@ deletePot = async function(){
 };
 
 // ── INIT ─────────────────────────────────────────────────────
+
+// Register crosshair draw plugin globally
+
 loadAll().then(() => {
   renderDashboard();
   renderHareketler();
