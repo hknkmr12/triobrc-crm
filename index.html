@@ -811,6 +811,14 @@ tr:hover td { background: #f8faff; }
     </div>
   </div>
   <div style="padding:0">
+    <!-- Rep tabs -->
+    <div class="rep-tabs" id="pipe-tabs" style="margin-top:0">
+      <div class="rep-tab active all" onclick="switchPipeRep('ALL',this)"><span class="tab-dot dot-all"></span>Tüm Ekip</div>
+      <div class="rep-tab gk" onclick="switchPipeRep('GOKHAN_KAYA',this)"><span class="tab-dot dot-gk"></span>Gökhan Kaya</div>
+      <div class="rep-tab hk" onclick="switchPipeRep('HAKAN_KEMER',this)"><span class="tab-dot dot-hk"></span>Hakan Kemer</div>
+      <div class="rep-tab ha" onclick="switchPipeRep('HOUSE_ACCOUNT',this)"><span class="tab-dot dot-ha"></span>House Account</div>
+      <div class="rep-tab kd" onclick="switchPipeRep('KUTSİ_DEVECİ',this)"><span class="tab-dot dot-kd"></span>Kutsi Deveci</div>
+    </div>
     <!-- Pipeline KPIs -->
     <div class="kpi-row kpi-row-4" id="pipe-kpis"></div>
     <!-- Charts -->
@@ -855,7 +863,7 @@ tr:hover td { background: #f8faff; }
             <tr>
               <th>Temsilci</th><th>Müşteri</th><th>Fırsat</th>
               <th>Kategori</th><th>Dönem</th><th style="text-align:right">Tahmini €</th>
-              <th style="text-align:center">Olasılık</th><th style="text-align:center">Ağırlıklı?</th>
+              <th style="text-align:center">Olasılık</th>
               <th>Aşama</th><th>Not</th><th style="width:50px"></th>
             </tr>
           </thead>
@@ -2055,15 +2063,26 @@ function saveHedefler(){ saveTargets(); }
 let _chPipC, _chPipA;
 let potEditId=null;
 
+let PIPE_REP = 'ALL';
+
+function switchPipeRep(rep, el){
+  PIPE_REP = rep;
+  document.getElementById('pipe-tabs').querySelectorAll('.rep-tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderPipeline();
+}
+
 function renderPipeline(){
   const asama  = document.getElementById('pipe-asama')?.value||'';
   const ceyrek = document.getElementById('pipe-ceyrek')?.value||'';
-  const rows   = potData.filter(p=>{
+  // Filter by rep
+  const basePot = PIPE_REP==='ALL' ? potData : potData.filter(p=>p.rep===PIPE_REP);
+  const rows   = basePot.filter(p=>{
     if(asama&&p.asama!==asama) return false;
     if(ceyrek&&p.ceyrek!==ceyrek) return false;
     return true;
   });
-  const actives=potData.filter(p=>p.asama!=='Kayıp'&&p.asama!=='Kapandı');
+  const actives=basePot.filter(p=>p.asama!=='Kayıp'&&p.asama!=='Kapandı');
   const totalTah=actives.reduce((s,p)=>s+p.tutar,0);
   // Ağırlıklı değer = %75 ve üzeri olasılıklı tekliflerin TAM tutarı (çarpma yok)
   const highProb=actives.filter(p=>p.olasilik>=75);
@@ -2087,8 +2106,8 @@ function renderPipeline(){
   _chPipC=new Chart(document.getElementById('chPipeCeyrek'),{
     type:'bar',
     data:{labels:qKeys,datasets:[
-      {label:'Tahmini',data:qKeys.map(q=>Math.round(potData.filter(p=>p.ceyrek===q).reduce((s,p)=>s+p.tutar,0))),backgroundColor:C.orange+'33',borderColor:C.orange,borderWidth:2,borderRadius:5},
-      {label:'Ağırlıklı',data:qKeys.map(q=>Math.round(potData.filter(p=>p.ceyrek===q).reduce((s,p)=>s+p.tutar*p.olasilik/100,0))),backgroundColor:C.green+'33',borderColor:C.green,borderWidth:2,borderRadius:5}
+      {label:'Tahmini',data:qKeys.map(q=>Math.round(basePot.filter(p=>p.ceyrek===q).reduce((s,p)=>s+p.tutar,0))),backgroundColor:C.orange+'33',borderColor:C.orange,borderWidth:2,borderRadius:5},
+      {label:'Yüksek Olasılıklı (≥%75)',data:qKeys.map(q=>Math.round(basePot.filter(p=>p.ceyrek===q&&p.olasilik>=75).reduce((s,p)=>s+p.tutar,0))),backgroundColor:C.green+'33',borderColor:C.green,borderWidth:2,borderRadius:5}
     ]},
     options:{
       responsive:true,maintainAspectRatio:false,
@@ -2103,7 +2122,7 @@ function renderPipeline(){
   destroyChart('chPipeAsama');
   const asamalar=['Teklif','Görüşme','Sıcak','Kapandı','Kayıp'];
   const aCols=[C.blue,C.orange,C.green,C.green,C.red];
-  const aCounts=asamalar.map(a=>potData.filter(p=>p.asama===a).reduce((s,p)=>s+p.tutar,0));
+  const aCounts=asamalar.map(a=>basePot.filter(p=>p.asama===a).reduce((s,p)=>s+p.tutar,0));
   _chPipA=new Chart(document.getElementById('chPipeAsama'),{
     type:'doughnut',
     data:{labels:asamalar,datasets:[{data:aCounts.map(v=>Math.round(v)),backgroundColor:aCols.map(c=>c+'cc'),borderWidth:2,borderColor:'#fff'}]},
@@ -2135,10 +2154,7 @@ function renderPipeline(){
         %${p.olasilik}${p.olasilik>=75?' ★':''}
       </span>
     </td>
-    <td style="text-align:center">${p.olasilik>=75
-      ? '<span style="color:var(--green);font-size:12px;font-weight:700">★ Dahil</span>'
-      : '<span style="color:var(--text3);font-size:11px">—</span>'
-    }</td>
+
     <td><span class="pill ${ABADGE[p.asama]||''}" style="font-size:9px">${p.asama}</span></td>
     <td class="td-dim" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.not||''}">${p.not||'—'}</td>
     <td><button class="btn btn-icon btn-warn" onclick="openPotModal('${p._pid}')">✏️</button></td>
