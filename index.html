@@ -992,7 +992,14 @@ tr:hover td { background: #f8faff; }
           <option>Teklif</option><option>Görüşme</option><option>Sıcak</option><option>Kapandı</option><option>Kayıp</option>
         </select></div>
       <div class="form-group"><label class="form-label">Tahmini Tutar (€)</label><input class="form-input" type="number" id="pm-tutar" value="0" step="100"></div>
-      <div class="form-group"><label class="form-label">Kapanma Olasılığı (%)</label><input class="form-input" type="number" id="pm-olasilik" value="50" min="0" max="100"></div>
+      <div class="form-group"><label class="form-label">Kapanma Olasılığı</label>
+        <select class="form-input" id="pm-olasilik">
+          <option value="30">%30 — Düşük</option>
+          <option value="50" selected>%50 — Orta</option>
+          <option value="75">%75 — Yüksek ★</option>
+          <option value="90">%90 — Çok Yüksek ★</option>
+          <option value="100">%100 — Kesin ★</option>
+        </select></div>
       <div class="form-group" style="grid-column:1/-1"><label class="form-label">Not</label><input class="form-input" id="pm-not" placeholder="Detaylar, bağlantı kişisi…"></div>
     </div>
     <div class="modal-footer">
