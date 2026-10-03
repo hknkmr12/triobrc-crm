@@ -610,9 +610,12 @@ tr:hover td { background: #f8faff; }
     <!-- Bottom row: Kategori bar + Top10 + Aylık ilerleme -->
     <div class="g3" style="margin-bottom:16px">
       <div class="card">
-        <div class="card-header"><span class="card-title">Kategori Dağılımı</span></div>
+        <div class="card-header">
+          <span class="card-title">Kategori Dağılımı</span>
+          <button class="ch-eye" onclick="toggleLabels('chCatBar',this)">👁</button>
+        </div>
         <div class="card-body">
-          <div class="ch-wrap" style="height:200px"><canvas id="chCatBar"></canvas></div>
+          <div class="ch-wrap" style="height:280px"><canvas id="chCatBar"></canvas></div>
         </div>
       </div>
       <div class="card">
@@ -1595,33 +1598,40 @@ function renderGenel(){
     }
   });
 
-  // Şirket hedef gauge (SVG doughnut)
+  // Şirket hedef gauge — tam daire SVG
   const gaugeEl = document.getElementById('genel-gauge-wrap');
   if(gaugeEl){
-    const yHg  = repSel==='ALL' ? getTotalYearTarget() : getRepYearTarget(repSel);
-    const actPct = yHg>0 ? (total/yHg*100) : null;
-    const dispPct = actPct!==null ? Math.round(actPct) : null;
-    const gaugeColor = actPct===null ? '#94a3b8' : actPct>=100 ? C.green : actPct>=70 ? C.orange : '#e03535';
-    const R=68, stroke=14, cx=80, cy=80;
-    const circ = Math.PI*R; // semicircle
-    const filled = actPct!==null ? Math.min(actPct/100, 1.15)*circ : 0; // allow slight overflow for >100%
-    const trackFill = actPct!==null && actPct>100 ? C.green : '#e4e8f2';
+    const yHg      = repSel==='ALL' ? getTotalYearTarget() : getRepYearTarget(repSel);
+    const actPct   = yHg>0 ? (total/yHg*100) : null;
+    const dispPct  = actPct!==null ? Math.round(actPct) : null;
+    const gaugeCol = actPct===null ? '#94a3b8' : actPct>=100 ? C.green : actPct>=70 ? C.orange : '#e03535';
+    const R=54, stroke=12, cx=70, cy=70;
+    const circ     = 2*Math.PI*R;   // tam çevre
+    const filled   = actPct!==null ? Math.min(actPct/100, 1)*circ : 0;
+    // Başlangıç noktası üst (saat 12) = offset ile ayarla: circ * 0.25
+    const offset   = circ * 0.25;
     gaugeEl.innerHTML = `
-      <svg width="160" height="90" viewBox="0 0 160 90" style="overflow:visible">
-        <path d="M ${cx-R},${cy} A ${R},${R} 0 0,1 ${cx+R},${cy}"
-          fill="none" stroke="${trackFill}" stroke-width="${stroke}" stroke-linecap="round"/>
-        <path d="M ${cx-R},${cy} A ${R},${R} 0 0,1 ${cx+R},${cy}"
-          fill="none" stroke="${gaugeColor}" stroke-width="${stroke}" stroke-linecap="round"
-          stroke-dasharray="${filled} ${circ}"
-          style="transition:stroke-dasharray .8s ease"/>
-        <text x="${cx}" y="${cy-8}" text-anchor="middle" font-family="Inter,sans-serif" font-size="26" font-weight="800" fill="${gaugeColor}">${dispPct!==null?dispPct+'%':'—'}</text>
-        <text x="${cx}" y="${cy+8}" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#8892b0">ULAŞILDI</text>
+      <svg width="140" height="140" viewBox="0 0 140 140">
+        <!-- Track -->
+        <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
+          stroke="#e4e8f2" stroke-width="${stroke}"/>
+        <!-- Fill -->
+        <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
+          stroke="${gaugeCol}" stroke-width="${stroke}" stroke-linecap="round"
+          stroke-dasharray="${filled.toFixed(2)} ${circ.toFixed(2)}"
+          stroke-dashoffset="${offset.toFixed(2)}"
+          style="transition:stroke-dasharray .9s ease"/>
+        <!-- Merkez yüzde -->
+        <text x="${cx}" y="${cy-7}" text-anchor="middle"
+          font-family="Inter,sans-serif" font-size="24" font-weight="800" fill="${gaugeCol}">${dispPct!==null?dispPct+'%':'—'}</text>
+        <text x="${cx}" y="${cy+11}" text-anchor="middle"
+          font-family="Inter,sans-serif" font-size="9" letter-spacing="1" fill="#94a3b8">ULAŞILDI</text>
       </svg>
-      <div style="text-align:center;margin-top:6px">
-        <div style="font-size:13px;font-weight:700;color:var(--text)">${fmt(total)}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">${yHg>0?'Hedef: '+fmt(yHg):'Hedef girilmedi'}</div>
-        ${yHg>0&&total<yHg?`<div style="font-size:10px;color:#e03535;margin-top:3px">Kalan: ${fmt(yHg-total)}</div>`:''}
-        ${yHg>0&&total>=yHg?`<div style="font-size:10px;color:${C.green};font-weight:700;margin-top:3px">✓ Hedef aşıldı!</div>`:''}
+      <div style="text-align:center;margin-top:12px;line-height:1.7">
+        <div style="font-size:15px;font-weight:800;color:var(--text)">${fmt(total)}</div>
+        <div style="font-size:11px;color:var(--text3)">${yHg>0?'Hedef: <strong style="color:var(--text2)">'+fmt(yHg)+'</strong>':'Hedef girilmedi'}</div>
+        ${yHg>0&&total<yHg?`<div style="font-size:11px;color:#e03535;margin-top:2px">Kalan: <strong>${fmt(yHg-total)}</strong></div>`:''}
+        ${yHg>0&&total>=yHg?`<div style="font-size:11px;color:${C.green};font-weight:700;margin-top:2px">✓ Hedef aşıldı!</div>`:''}
       </div>`;
   }
 
