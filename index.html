@@ -230,6 +230,7 @@ body {
 .delta-warn { background: var(--orange-l); color: #92400e; }
 .delta-gray { background: var(--gray-l);   color: var(--gray); }
 
+
 /* ── GRID ───────────────────────────────────────────────── */
 .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
 .g3 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
@@ -276,6 +277,27 @@ th {
   border-bottom: 2px solid var(--border);
   background: var(--surface2); white-space: nowrap;
 }
+.th-sort {
+  cursor: pointer; user-select: none;
+  transition: color .15s, background .15s;
+}
+.th-sort:hover { color: var(--blue); background: var(--blue-l); }
+.th-sort.sort-asc .sort-icon::after { content: '↑'; }
+.th-sort.sort-desc .sort-icon::after { content: '↓'; }
+.th-sort.sort-asc .sort-icon, .th-sort.sort-desc .sort-icon { display: none; }
+.th-sort.sort-asc::after { content: ' ↑'; color: var(--blue); font-size: 11px; }
+.th-sort.sort-desc::after { content: ' ↓'; color: var(--blue); font-size: 11px; }
+.sort-icon { opacity: 0.35; font-size: 10px; }
+.th-sort:hover .sort-icon { opacity: 0.7; }
+
+/* Ay seçim butonları (pipeline modal) */
+.ay-btn {
+  padding: 6px 16px; border-radius: 20px; border: 1.5px solid var(--border);
+  background: var(--surface); color: var(--text2); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all .15s;
+}
+.ay-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-l); }
+.ay-btn.active { border-color: var(--green); background: var(--green); color: #fff; font-weight: 600; }
 td {
   padding: 9px 14px;
   border-bottom: 1px solid var(--border2);
@@ -553,7 +575,7 @@ tr:hover td { background: #f8faff; }
   <div class="topbar">
     <div>
       <div class="topbar-title" id="genel-title">Genel Bakış — Tüm Ekip</div>
-      <div class="topbar-sub">2026 Yılı · Ocak–Haziran</div>
+      <div class="topbar-sub">2026 Yılı · Ocak–Eylül</div>
     </div>
     <div class="topbar-actions">
       <select class="f-select" id="genel-rep" onchange="onGenelRepChange()">
@@ -611,45 +633,13 @@ tr:hover td { background: #f8faff; }
 <!-- ══════════ TEMSİLCİ PERFORMANSI ══════════ -->
 <div id="page-temsilci" class="page">
   <div class="topbar">
-    <div><div class="topbar-title">Temsilci Performansı</div><div class="topbar-sub">Kim daha başarılı?</div></div>
+    <div><div class="topbar-title">Temsilci Performansı</div></div>
   </div>
   <div style="padding:0">
-    <!-- 4 rep KPI cards -->
-    <div class="kpi-row" id="rep-kpis"></div>
-    <!-- Comparison table + monthly trend -->
-    <div class="g-60-40" style="margin-bottom:16px">
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">Temsilci Karşılaştırma Tablosu</span>
-          <span class="card-sub">Satış · Hedef · Gerçekleşme · Yeni Müşteri · Kazanma Oranı</span>
-        </div>
-        <div class="card-body-0">
-          <div class="tbl-wrap">
-            <table class="cmp-table">
-              <thead>
-                <tr>
-                  <th>Temsilci</th>
-                  <th style="text-align:right">Satış €</th>
-                  <th style="text-align:right">Hedef €</th>
-                  <th style="text-align:center">Gerçekleşme</th>
-                  <th style="text-align:right">Ort. Sipariş</th>
-                  <th style="text-align:center">Haziran</th>
-                </tr>
-              </thead>
-              <tbody id="rep-cmp-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">Kategori Dağılımı</span></div>
-        <div class="card-body">
-          <div class="ch-wrap" style="height:220px"><canvas id="chRepCat"></canvas></div>
-        </div>
-      </div>
-    </div>
-    <!-- Bullet chart + monthly line -->
-    <div class="g2">
+    <!-- KPI kartları: 4 sütun yatay -->
+    <div id="rep-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px"></div>
+    <!-- Satır 1: Hedef vs Gerçekleşen + Kategori Dağılımı -->
+    <div class="g2" style="margin-bottom:16px">
       <div class="card">
         <div class="card-header">
           <span class="card-title">Hedef vs Gerçekleşen</span>
@@ -659,11 +649,51 @@ tr:hover td { background: #f8faff; }
       </div>
       <div class="card">
         <div class="card-header">
+          <span class="card-title">Kategori Dağılımı</span>
+          <span class="card-sub" id="rep-cat-sub">Tümü · Etiketlere tıklayarak filtreleyin</span>
+        </div>
+        <div class="card-body">
+          <div class="ch-wrap" style="height:260px"><canvas id="chRepCat"></canvas></div>
+        </div>
+      </div>
+    </div>
+    <!-- Satır 2: Detay metrikleri tablosu -->
+    <div style="margin-bottom:16px">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Temsilci Detay Metrikleri</span>
+          <span class="card-sub">Ort. Sipariş · Q3 · Hareket Sayısı · Müşteri Sayısı · En Büyük Satış</span>
+        </div>
+        <div class="card-body-0">
+          <div class="tbl-wrap">
+            <table class="cmp-table">
+              <thead>
+                <tr>
+                  <th>Temsilci</th>
+                  <th style="text-align:right">Ort. Sipariş €</th>
+                  <th style="text-align:right">Q3 Toplamı €</th>
+                  <th style="text-align:center">Hareket</th>
+                  <th style="text-align:center">Müşteri</th>
+                  <th style="text-align:right">En Büyük Satış €</th>
+                  <th style="text-align:right">En Aktif Ay</th>
+                </tr>
+              </thead>
+              <tbody id="rep-detail-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Satır 3: Aylık Trend tam genişlik -->
+    <div style="margin-bottom:16px">
+      <div class="card">
+        <div class="card-header">
           <span class="card-title">Aylık Trend</span>
+          <span class="card-sub" id="rep-trend-sub" style="color:var(--blue)"></span>
           <button class="ch-eye" onclick="toggleLabels('chRepLine',this)">👁</button>
         </div>
         <div class="card-body">
-          <div class="ch-wrap" style="height:200px"><canvas id="chRepLine"></canvas></div>
+          <div class="ch-wrap" style="height:260px"><canvas id="chRepLine"></canvas></div>
         </div>
       </div>
     </div>
@@ -687,23 +717,26 @@ tr:hover td { background: #f8faff; }
   <div style="padding:0">
     <!-- Pareto KPI banner -->
     <div class="kpi-row kpi-row-3" id="must-kpis"></div>
-    <!-- Pareto chart + table -->
-    <div class="g-60-40" style="margin-bottom:16px">
+    <!-- Pareto chart — tam genişlik -->
+    <div style="margin-bottom:16px">
       <div class="card">
         <div class="card-header">
           <span class="card-title">Pareto Analizi — %80/20</span>
           <button class="ch-eye" onclick="toggleLabels('chPareto',this)">👁</button>
         </div>
         <div class="card-body">
-          <div class="ch-wrap" style="height:280px"><canvas id="chPareto"></canvas></div>
+          <div class="ch-wrap" style="height:340px"><canvas id="chPareto"></canvas></div>
         </div>
       </div>
+    </div>
+    <!-- Müşteri listesi — tam genişlik -->
+    <div style="margin-bottom:16px">
       <div class="card">
         <div class="card-header">
           <span class="card-title">Müşteri Listesi</span>
           <span class="card-sub">A=%80 · B=%80–95 · C=+%95</span>
         </div>
-        <div class="tbl-wrap" style="max-height:360px;overflow-y:auto">
+        <div class="tbl-wrap">
           <table>
             <thead><tr><th>#</th><th>Müşteri</th><th style="text-align:right">€</th><th style="text-align:center">Pay</th><th style="text-align:center">Kümülatif</th><th style="text-align:center">Seg.</th></tr></thead>
             <tbody id="must-tbody"></tbody>
@@ -721,12 +754,22 @@ tr:hover td { background: #f8faff; }
     <div class="topbar-actions">
       <button class="btn btn-primary" onclick="openAddModal()">+ Satış Ekle</button>
       <button class="btn" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn" onclick="document.getElementById('csv-import-input').click()">⬆ CSV Yükle</button>
+      <input type="file" id="csv-import-input" accept=".csv" style="display:none" onchange="importCSV(this)">
     </div>
   </div>
   <div style="padding:0">
+    <!-- Rep tabs -->
+    <div class="rep-tabs" id="har-tabs" style="margin-top:0">
+      <div class="rep-tab active all" onclick="switchHarRep('ALL',this)"><span class="tab-dot dot-all"></span>Tüm Ekip</div>
+      <div class="rep-tab gk" onclick="switchHarRep('GOKHAN_KAYA',this)"><span class="tab-dot dot-gk"></span>Gökhan Kaya</div>
+      <div class="rep-tab hk" onclick="switchHarRep('HAKAN_KEMER',this)"><span class="tab-dot dot-hk"></span>Hakan Kemer</div>
+      <div class="rep-tab ha" onclick="switchHarRep('HOUSE_ACCOUNT',this)"><span class="tab-dot dot-ha"></span>House Account</div>
+      <div class="rep-tab kd" onclick="switchHarRep('KUTSİ_DEVECİ',this)"><span class="tab-dot dot-kd"></span>Kutsi Deveci</div>
+    </div>
     <div class="filter-bar" style="padding:16px 0 0 0">
       <input class="f-input" id="h-search" placeholder="🔍  Müşteri, ürün veya açıklama…" oninput="filterTable()">
-      <select class="f-select" id="h-rep" onchange="filterTable()">
+      <select class="f-select" id="h-rep" onchange="filterTable()" style="display:none">
         <option value="">Tüm Temsilciler</option>
         <option value="GOKHAN_KAYA">Gökhan Kaya</option>
         <option value="HAKAN_KEMER">Hakan Kemer</option>
@@ -751,8 +794,13 @@ tr:hover td { background: #f8faff; }
         <table>
           <thead>
             <tr>
-              <th>#</th><th>Temsilci</th><th>Tarih</th><th>Müşteri</th>
-              <th>Ürün / Hizmet</th><th>Miktar</th><th>Tutar €</th>
+              <th>#</th>
+              <th class="th-sort" onclick="sortHar('rep')" id="hth-rep">Temsilci <span class="sort-icon">↕</span></th>
+              <th class="th-sort" onclick="sortHar('tarih')" id="hth-tarih">Tarih <span class="sort-icon">↕</span></th>
+              <th class="th-sort" onclick="sortHar('cari')" id="hth-cari">Müşteri <span class="sort-icon">↕</span></th>
+              <th class="th-sort" onclick="sortHar('urun')" id="hth-urun">Ürün / Hizmet <span class="sort-icon">↕</span></th>
+              <th>Miktar</th>
+              <th class="th-sort" style="text-align:right" onclick="sortHar('tutar')" id="hth-tutar">Tutar € <span class="sort-icon">↕</span></th>
               <th>Kategori</th><th>Açıklama</th><th style="width:50px"></th>
             </tr>
           </thead>
@@ -807,6 +855,7 @@ tr:hover td { background: #f8faff; }
   <div class="topbar">
     <div><div class="topbar-title">Pipeline</div><div class="topbar-sub">Potansiyel Satışlar & Forecast</div></div>
     <div class="topbar-actions">
+      <button class="btn btn-sm" onclick="migrateKapandiToSales()" title="Kapandı durumundaki ancak henüz Satış Hareketleri'ne eklenmemiş fırsatları ekle" style="color:var(--orange);border-color:var(--orange)">⚡ Kapandıları Aktar</button>
       <button class="btn btn-primary" onclick="openPotModal()">+ Fırsat Ekle</button>
     </div>
   </div>
@@ -861,10 +910,15 @@ tr:hover td { background: #f8faff; }
         <table>
           <thead>
             <tr>
-              <th>Temsilci</th><th>Müşteri</th><th>Fırsat</th>
-              <th>Kategori</th><th>Dönem</th><th style="text-align:right">Tahmini €</th>
-              <th style="text-align:center">Olasılık</th>
-              <th>Aşama</th><th>Not</th><th style="width:50px"></th>
+              <th>Temsilci</th>
+              <th class="th-sort" onclick="sortPipe('cari')" id="pth-cari">Müşteri <span class="sort-icon">↕</span></th>
+              <th class="th-sort" onclick="sortPipe('firsat')" id="pth-firsat">Fırsat <span class="sort-icon">↕</span></th>
+              <th>Kategori</th>
+              <th class="th-sort" onclick="sortPipe('ceyrek')" id="pth-ceyrek">Dönem <span class="sort-icon">↕</span></th>
+              <th class="th-sort" style="text-align:right" onclick="sortPipe('tutar')" id="pth-tutar">Tahmini € <span class="sort-icon">↕</span></th>
+              <th class="th-sort" style="text-align:center" onclick="sortPipe('olasilik')" id="pth-olasilik">Olasılık <span class="sort-icon">↕</span></th>
+              <th class="th-sort" onclick="sortPipe('asama')" id="pth-asama">Aşama <span class="sort-icon">↕</span></th>
+              <th>Not</th><th style="width:80px"></th>
             </tr>
           </thead>
           <tbody id="pipe-tbody"></tbody>
@@ -960,58 +1014,6 @@ tr:hover td { background: #f8faff; }
   </div>
 </div>
 
-<!-- ===== POTANSİYEL MODAL ===== -->
-<div class="modal-overlay" id="potModal">
-  <div class="modal">
-    <div class="modal-title" id="pot-modal-title">🔮 Yeni Fırsat</div>
-    <div class="form-grid-2">
-      <div class="form-group"><label class="form-label">Temsilci</label>
-        <select class="form-input" id="pm-rep">
-          <option value="GOKHAN_KAYA">Gökhan Kaya</option>
-          <option value="HAKAN_KEMER">Hakan Kemer</option>
-          <option value="HOUSE_ACCOUNT">House Account</option>
-          <option value="KUTSİ_DEVECİ">Kutsi Deveci</option>
-        </select></div>
-      <div class="form-group"><label class="form-label">Dönem</label>
-        <select class="form-input" id="pm-ceyrek">
-          <option>Q3 2026</option><option>Q4 2026</option><option>Q1 2027</option><option>Q2 2027</option>
-        </select></div>
-      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Müşteri</label><input class="form-input" id="pm-cari" placeholder="Müşteri adı"></div>
-      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Fırsat Adı</label><input class="form-input" id="pm-firsat" placeholder="Proje / ürün adı"></div>
-      <div class="form-group"><label class="form-label">Kategori</label>
-        <select class="form-input" id="pm-kat">
-          <option value="M. KİMYASAL">M. Kimyasal</option>
-          <option value="M. SÖZLEŞME">M. Sözleşme</option>
-          <option value="M. EKİPMAN">M. Ekipman</option>
-          <option value="Y. KİMYASAL">Y. Kimyasal</option>
-          <option value="Y. SÖZLEŞME">Y. Sözleşme</option>
-          <option value="Y. EKİPMAN">Y. Ekipman</option>
-        </select></div>
-      <div class="form-group"><label class="form-label">Aşama</label>
-        <select class="form-input" id="pm-asama">
-          <option>Teklif</option><option>Görüşme</option><option>Sıcak</option><option>Kapandı</option><option>Kayıp</option>
-        </select></div>
-      <div class="form-group"><label class="form-label">Tahmini Tutar (€)</label><input class="form-input" type="number" id="pm-tutar" value="0" step="100"></div>
-      <div class="form-group"><label class="form-label">Kapanma Olasılığı</label>
-        <select class="form-input" id="pm-olasilik">
-          <option value="30">%30 — Düşük</option>
-          <option value="50" selected>%50 — Orta</option>
-          <option value="75">%75 — Yüksek ★</option>
-          <option value="90">%90 — Çok Yüksek ★</option>
-          <option value="100">%100 — Kesin ★</option>
-        </select></div>
-      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Not</label><input class="form-input" id="pm-not" placeholder="Detaylar, bağlantı kişisi…"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-sm btn-danger" id="pot-del-btn" onclick="deletePot()" style="display:none">🗑 Sil</button>
-      <button class="btn" onclick="closePotModal()">İptal</button>
-      <button class="btn btn-primary" onclick="savePotModal()">Kaydet</button>
-    </div>
-  </div>
-</div>
-
-
-
 <!-- ADD MODAL -->
 <div class="modal-overlay" id="addModal">
   <div class="modal">
@@ -1066,9 +1068,14 @@ tr:hover td { background: #f8faff; }
           <option value="KUTSİ_DEVECİ">Kutsi Deveci</option>
         </select></div>
       <div class="form-group"><label class="form-label">Dönem</label>
-        <select class="form-input" id="pm-ceyrek">
+        <select class="form-input" id="pm-ceyrek" onchange="updatePmAyButtons()">
           <option>Q3 2026</option><option>Q4 2026</option><option>Q1 2027</option><option>Q2 2027</option>
         </select></div>
+      <!-- Dönem ayları — her zaman görünür, dönem seçimine göre güncellenir -->
+      <div class="form-group" style="grid-column:1/-1" id="pm-ay-group">
+        <label class="form-label">Satış Ayı</label>
+        <div id="pm-ay-buttons" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
+      </div>
       <div class="form-group" style="grid-column:1/-1"><label class="form-label">Müşteri</label><input class="form-input" id="pm-cari" placeholder="Müşteri adı"></div>
       <div class="form-group" style="grid-column:1/-1"><label class="form-label">Fırsat Adı</label><input class="form-input" id="pm-firsat" placeholder="Proje / ürün adı"></div>
       <div class="form-group"><label class="form-label">Kategori</label>
@@ -1170,7 +1177,8 @@ async function loadAll(){
     if(!e3 && potRows){ potData = potRows.map(p=>({
       _pid:p.id, rep:p.rep, cari:p.cari||'', firsat:p.firsat||'',
       kat:p.kat||'', ceyrek:p.ceyrek||'Q3 2026', asama:p.asama||'Teklif',
-      tutar:Number(p.tutar)||0, olasilik:Number(p.olasilik)||50, not:p.not_text||''
+      tutar:Number(p.tutar)||0, olasilik:Number(p.olasilik)||50, not:p.not_text||'',
+      satis_ay:p.satis_ay||''
     })); }
     IS_ONLINE=true; setConn('ok');
     lsSet(LS.SALES,salesData); lsSet(LS.TARGETS,targets); lsSet(LS.POT,potData);
@@ -1267,7 +1275,7 @@ async function dbSavePot(pot){
   const payload = {
     rep:pot.rep, cari:pot.cari, firsat:pot.firsat, kat:pot.kat,
     ceyrek:pot.ceyrek, asama:pot.asama, tutar:pot.tutar,
-    olasilik:pot.olasilik, not_text:pot.not||''
+    olasilik:pot.olasilik, not_text:pot.not||'', satis_ay:pot.satis_ay||null
   };
   if(pot._pid && String(pot._pid).includes('-')){
     await _sb.from('potansiyel').update(payload).eq('id',pot._pid);
@@ -1477,13 +1485,16 @@ function renderGenel(){
 
   const total   = data.reduce((s,r)=>s+r.tutar,0);
   const mAct    = mTotals(data);
-  const months6 = ['01','02','03','04','05','06'];
-  const haziran = mAct['06']||0;
-  const avg6    = months6.reduce((s,m)=>s+(mAct[m]||0),0)/6;
+  const months9 = ['01','02','03','04','05','06','07','08','09'];
+  // Son veri olan ayı bul (en büyük ay index'i)
+  const lastM   = months9.slice().reverse().find(m=>(mAct[m]||0)>0) || '09';
+  const q3Months = ['07','08','09'];
+  const q3       = q3Months.reduce((s,m)=>s+(mAct[m]||0),0);
+  const avg9    = months9.reduce((s,m)=>s+(mAct[m]||0),0) / (months9.filter(m=>(mAct[m]||0)>0).length||9);
   const yH      = repSel==='ALL' ? getTotalYearTarget() : getRepYearTarget(repSel);
   const pct     = yH>0 ? Math.round(total/yH*100) : null;
   const custSet = new Set(data.map(r=>r.cari));
-  const hazH    = getMonthTarget(repSel,'06');
+  const q3H     = q3Months.reduce((s,m)=>s+getMonthTarget(repSel,m),0);
 
   // Pipeline summary
   const filtPot = repSel==='ALL' ? potData : potData.filter(p=>p.rep===repSel);
@@ -1493,9 +1504,9 @@ function renderGenel(){
   document.getElementById('genel-kpis').innerHTML = [
     { label:'Toplam Satış (2026)', val:fmt(total), sub:data.length+' hareket', color:'kc-blue',
       delta: pct!==null ? {txt:pct+'% hedef', cls:pct>=80?'delta-up':pct>=50?'delta-warn':'delta-down'} : null },
-    { label:'Haziran 2026', val:fmt(haziran), sub:'Son ay', color:'kc-green',
-      delta: hazH>0 ? {txt:Math.round(haziran/hazH*100)+'% hedef', cls:haziran>=hazH?'delta-up':'delta-down'} : {txt:'Hedef girilmedi',cls:'delta-gray'} },
-    { label:'Aylık Ortalama', val:fmt(avg6), sub:'Oca–Haz 2026', color:'kc-blue', delta:null },
+    { label:'Q3 2026', val:fmt(q3), sub:'Tem–Eyl toplamı', color:'kc-green',
+      delta: q3H>0 ? {txt:Math.round(q3/q3H*100)+'% hedef', cls:q3>=q3H?'delta-up':'delta-down'} : {txt:'Hedef girilmedi',cls:'delta-gray'} },
+    { label:'Aylık Ortalama', val:fmt(avg9), sub:'Oca–Eyl 2026', color:'kc-blue', delta:null },
     { label:'Yıllık Hedef', val:yH>0?fmt(yH):'—', sub:yH>0?'Kalan: '+fmt(Math.max(0,yH-total)):'Hedef girilmedi', color:'kc-gray', delta:null },
     { label:'Aktif Müşteri', val:custSet.size+' adet', sub:'Farklı müşteri', color:'kc-purple', delta:null },
     { label:'Pipeline', val:fmt(pipeVal), sub:filtPot.filter(p=>p.asama!=='Kayıp'&&p.asama!=='Kapandı').length+' açık fırsat', color:'kc-orange', delta:null },
@@ -1509,8 +1520,8 @@ function renderGenel(){
 
   // Monthly trend chart
   destroyChart('chMonthly');
-  const mData = months6.map(m=>Math.round(mAct[m]||0));
-  const mH    = months6.map(m=>getMonthTarget(repSel,m));
+  const mData = months9.map(m=>Math.round(mAct[m]||0));
+  const mH    = months9.map(m=>getMonthTarget(repSel,m));
   const ds=[{
     label:'Gerçekleşen', data:mData,
     backgroundColor:repColor+'22', borderColor:repColor,
@@ -1524,7 +1535,7 @@ function renderGenel(){
     borderDash:[5,4]
   });
   _chM = new Chart(document.getElementById('chMonthly'),{
-    type:'bar', data:{labels:months6.map(m=>MONTHS[parseInt(m)]),datasets:ds},
+    type:'bar', data:{labels:months9.map(m=>MONTHS[parseInt(m)]),datasets:ds},
     options:{
       responsive:true,maintainAspectRatio:false,
       animation:{duration:600,easing:'easeOutQuart',onComplete(e){paintLabels(e.chart);}},
@@ -1575,9 +1586,9 @@ function renderGenel(){
   // Hedef progress
   const yH2 = repSel==='ALL' ? getTotalYearTarget() : getRepYearTarget(repSel);
   document.getElementById('genel-hed-sub').textContent = yH2>0 ? 'Hedef: '+fmt(yH2) : 'Hedef girilmedi';
-  const hasH = months6.some(m=>getMonthTarget(repSel,m)>0);
+  const hasH = months9.some(m=>getMonthTarget(repSel,m)>0);
   document.getElementById('genel-hed-prog').innerHTML = hasH
-    ? months6.map(m=>{
+    ? months9.map(m=>{
         const h=getMonthTarget(repSel,m), a=mAct[m]||0;
         if(!h&&!a) return '';
         const p=h>0?Math.min(100,Math.round(a/h*100)):100;
@@ -1594,72 +1605,149 @@ function renderGenel(){
 // ══════════════════════════════════════════════════════════
 // TEMSİLCİ PERFORMANSI
 // ══════════════════════════════════════════════════════════
-function renderTemsilci(){
-  const months6=['01','02','03','04','05','06'];
+let _activeCat = 'ALL';
+let _activeRep = 'ALL';
 
-  // Rep KPI cards (4 cards)
+function filterByCat(recs){
+  if(_activeCat==='ALL') return recs;
+  return recs.filter(r=>getCat(r.satis_elemani)===_activeCat);
+}
+
+function _updateRepKpisAndTrend(){
+  const months9=['01','02','03','04','05','06','07','08','09'];
+  const catLabel = _activeCat==='ALL' ? '' : _activeCat;
+
+  // KPI kartları — yatay, geniş
   document.getElementById('rep-kpis').innerHTML = REPS_ORDER.map((rep,i)=>{
-    const recs = salesData.filter(r=>r.rep===rep);
-    const tot  = recs.reduce((s,r)=>s+r.tutar,0);
-    const yH   = getRepYearTarget(rep);
-    const p    = yH>0 ? Math.round(tot/yH*100) : null;
-    const col  = REPS[rep].color;
-    return `<div class="kpi-card" style="border-top:3px solid ${col};animation-delay:${i*.05}s">
-      <div class="kpi-label" style="color:${col}">${REPS[rep].label}</div>
-      <div class="kpi-value" style="color:${col};font-size:22px">${fmt(tot)}</div>
-      <div class="kpi-sub">${recs.length} hareket</div>
-      ${p!==null?`<span class="kpi-delta ${p>=80?'delta-up':p>=50?'delta-warn':'delta-down'}">${p}% hedef</span>`:'<span class="kpi-delta delta-gray">Hedef girilmedi</span>'}
+    const recs  = filterByCat(salesData.filter(r=>r.rep===rep));
+    const allR  = salesData.filter(r=>r.rep===rep);
+    const tot   = recs.reduce((s,r)=>s+r.tutar,0);
+    const yH    = _activeCat==='ALL' ? getRepYearTarget(rep) : null;
+    const p     = yH>0 ? Math.round(tot/yH*100) : null;
+    const col   = REPS[rep].color;
+    const sub   = catLabel ? catLabel+' · '+recs.length+' hareket' : recs.length+' hareket';
+    const q3tot = allR.filter(r=>r.tarih&&['2026-07','2026-08','2026-09'].some(px=>r.tarih.startsWith(px))).reduce((s,r)=>s+r.tutar,0);
+    const pBar  = yH>0 ? Math.min(100,Math.round(tot/yH*100)) : null;
+    return `<div class="kpi-card" style="border-top:4px solid ${col};padding:20px 24px 18px;animation-delay:${i*.05}s">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div class="kpi-label" style="color:${col};font-size:11px;margin-bottom:0">${REPS[rep].label}</div>
+        ${p!==null?`<span class="kpi-delta ${p>=80?'delta-up':p>=50?'delta-warn':'delta-down'}" style="margin-top:0">${p}%</span>`:''}
+      </div>
+      <div class="kpi-value" style="color:${col};font-size:28px;margin-bottom:4px">${fmt(tot)}</div>
+      <div class="kpi-sub" style="margin-bottom:10px">${sub}</div>
+      ${pBar!==null?`
+        <div style="background:var(--border);border-radius:4px;height:5px;margin-bottom:8px">
+          <div style="width:${pBar}%;background:${col};height:5px;border-radius:4px;transition:width .5s"></div>
+        </div>`:''}
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)">
+        <span>Q3: <strong style="color:var(--text2)">${fmt(q3tot)}</strong></span>
+        ${yH>0?`<span>Hedef: <strong style="color:var(--text2)">${fmt(yH)}</strong></span>`:''}
+      </div>
     </div>`;
   }).join('');
 
-  // Comparison table
-  document.getElementById('rep-cmp-tbody').innerHTML = REPS_ORDER.map(rep=>{
-    const recs = salesData.filter(r=>r.rep===rep);
-    const tot  = recs.reduce((s,r)=>s+r.tutar,0);
-    const yH   = getRepYearTarget(rep);
-    const p    = yH>0 ? Math.round(tot/yH*100) : null;
+  // Aylık Trend başlığı
+  const trendSub = document.getElementById('rep-trend-sub');
+  if(trendSub) trendSub.textContent = catLabel ? '· '+catLabel : '';
+
+  // Aylık Trend grafiği
+  destroyChart('chRepLine');
+  const _lineDatasets = (activeRep)=> REPS_ORDER.map(rep=>{
+    const mt      = mTotals(filterByCat(salesData.filter(r=>r.rep===rep)));
+    const isOn    = activeRep==='ALL' || activeRep===rep;
+    const isSel   = activeRep===rep;
+    const col     = REPS[rep].color;
+    return {
+      label:           REPS[rep].label,
+      data:            months9.map(m=>Math.round(mt[m]||0)),
+      borderColor:     isOn ? col : col+'28',
+      backgroundColor: isOn ? col+(isSel?'20':'12') : col+'08',
+      borderWidth:     isSel ? 3 : (isOn ? 2 : 1.5),
+      pointRadius:     isSel ? 5  : (isOn ? 3 : 2),
+      pointHoverRadius:isSel ? 7  : 4,
+      fill:            true, tension:.4,
+      animation:{onComplete(e){paintLabels(e.chart);}}
+    };
+  });
+
+  new Chart(document.getElementById('chRepLine'),{
+    type:'line',
+    data:{ labels:months9.map(m=>MONTHS[parseInt(m)]), datasets:_lineDatasets(_activeRep) },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      animation:{duration:500,easing:'easeOutQuart',onComplete(e){paintLabels(e.chart);}},
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{
+          position:'bottom',
+          labels:{
+            color:'#64748b', font:{size:11}, boxWidth:12, padding:14,
+            generateLabels(chart){
+              return REPS_ORDER.map((rep,i)=>{
+                const col      = REPS[rep].color;
+                const isActive = _activeRep==='ALL' || _activeRep===rep;
+                const isSel    = _activeRep===rep;
+                return {
+                  text:        REPS[rep].label,
+                  fillStyle:   isActive ? col+'cc' : col+'22',
+                  strokeStyle: isActive ? col       : col+'22',
+                  lineWidth:   0,
+                  fontColor:   isSel    ? col
+                             : isActive ? '#374151'
+                             :            '#c0c8d4',
+                  font:        isSel ? {weight:'700',size:11} : {weight:'400',size:11},
+                  hidden:      false,
+                  datasetIndex:i
+                };
+              });
+            }
+          },
+          onClick(e, legendItem, legend){
+            const chart   = legend.chart;
+            const repKey  = REPS_ORDER[legendItem.datasetIndex];
+            _activeRep    = _activeRep===repKey ? 'ALL' : repKey;
+            chart.data.datasets = _lineDatasets(_activeRep);
+            chart.update('none');
+            const sub = document.getElementById('rep-trend-sub');
+            if(sub) sub.textContent = _activeRep==='ALL' ? '' : REPS[_activeRep].label+' seçili';
+          }
+        },
+        tooltip:{...TOOLTIP_STYLE}
+      },
+      scales:SCALE_STYLE
+    }
+  });
+}
+
+function renderTemsilci(){
+  const months9=['01','02','03','04','05','06','07','08','09'];
+  _activeCat='ALL'; _activeRep='ALL';
+
+  // Detay metrikleri tablosu — her zaman tam veri
+  document.getElementById('rep-detail-tbody').innerHTML = REPS_ORDER.map(rep=>{
+    const recs    = salesData.filter(r=>r.rep===rep);
+    const tot     = recs.reduce((s,r)=>s+r.tutar,0);
     const avgDeal = recs.length>0 ? tot/recs.length : 0;
-    const haz  = recs.filter(r=>r.tarih&&r.tarih.startsWith('2026-06')).reduce((s,r)=>s+r.tutar,0);
-    const col  = REPS[rep].color;
-    const pCls = p!==null?(p>=80?'delta-up':p>=50?'delta-warn':'delta-down'):'delta-gray';
+    const q3      = recs.filter(r=>r.tarih&&['2026-07','2026-08','2026-09'].some(px=>r.tarih.startsWith(px))).reduce((s,r)=>s+r.tutar,0);
+    const custCnt = new Set(recs.map(r=>r.cari)).size;
+    const maxSale = recs.length>0 ? Math.max(...recs.map(r=>r.tutar)) : 0;
+    // En aktif ay
+    const mt = mTotals(recs);
+    const bestM = Object.entries(mt).sort((a,b)=>b[1]-a[1])[0];
+    const bestMLabel = bestM ? MONTHS[parseInt(bestM[0])] : '—';
+    const col = REPS[rep].color;
     return `<tr>
       <td><span class="rep-badge rb-${REPS[rep].cls}">${REPS[rep].label}</span></td>
-      <td style="text-align:right" class="td-num">${fmt(tot)}</td>
-      <td style="text-align:right" class="td-dim">${yH>0?fmt(yH):'—'}</td>
-      <td style="text-align:center">${p!==null?`<span class="kpi-delta ${pCls}" style="font-size:11px">${p}%</span>`:'—'}</td>
-      <td style="text-align:right" class="td-dim">${fmt(avgDeal)}</td>
-      <td style="text-align:right" class="td-num">${fmt(haz)}</td>
+      <td style="text-align:right" class="td-num">${fmt(avgDeal)}</td>
+      <td style="text-align:right" class="td-num">${fmt(q3)}</td>
+      <td style="text-align:center" class="td-dim">${recs.length}</td>
+      <td style="text-align:center" class="td-dim">${custCnt}</td>
+      <td style="text-align:right" class="td-dim">${fmt(maxSale)}</td>
+      <td style="text-align:right"><span style="font-size:11px;font-weight:600;color:${col}">${bestMLabel}</span></td>
     </tr>`;
   }).join('');
 
-  // Category stacked bar (grouped by rep)
-  destroyChart('chRepCat');
-  const allCatData = REPS_ORDER.map(rep=>{
-    const recs=salesData.filter(r=>r.rep===rep);
-    return CAT_KEYS.map(c=>recs.filter(r=>getCat(r.satis_elemani)===c).reduce((s,r)=>s+r.tutar,0));
-  });
-  new Chart(document.getElementById('chRepCat'),{
-    type:'bar',
-    data:{
-      labels:REPS_ORDER.map(r=>REPS[r].label),
-      datasets:CAT_KEYS.map((cat,i)=>({
-        label:cat,data:REPS_ORDER.map((_,ri)=>Math.round(allCatData[ri][i])),
-        backgroundColor:PAL[i]+'cc',borderColor:PAL[i],borderWidth:0,borderRadius:2
-      }))
-    },
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      animation:{duration:600,easing:'easeOutQuart',onComplete(e){paintLabels(e.chart);}},
-      interaction:{mode:'index',intersect:false},
-      plugins:{legend:{position:'bottom',labels:{color:'#64748b',font:{size:10},boxWidth:10,padding:10}},tooltip:{...TOOLTIP_STYLE}},
-      scales:{
-        x:{stacked:true,ticks:{color:'#8892b0',font:{size:11}},grid:{display:false}},
-        y:{stacked:true,ticks:{color:'#8892b0',font:{size:10},callback:v=>'€'+fmtN(v)},grid:{color:'#edf0f8'}}
-      }
-    }
-  });
-
-  // Bullet chart
+  // Bullet chart — her zaman tam veri
   document.getElementById('rep-bullet').innerHTML = REPS_ORDER.map(rep=>{
     const tot = salesData.filter(r=>r.rep===rep).reduce((s,r)=>s+r.tutar,0);
     const yH  = getRepYearTarget(rep);
@@ -1684,31 +1772,91 @@ function renderTemsilci(){
     </div>`;
   }).join('');
 
-  // Monthly line (all reps)
-  destroyChart('chRepLine');
-  new Chart(document.getElementById('chRepLine'),{
-    type:'line',
-    data:{
-      labels:months6.map(m=>MONTHS[parseInt(m)]),
-      datasets:REPS_ORDER.map(rep=>{
-        const mt=mTotals(salesData.filter(r=>r.rep===rep));
-        return {
-          label:REPS[rep].label,
-          data:months6.map(m=>Math.round(mt[m]||0)),
-          borderColor:REPS[rep].color,backgroundColor:REPS[rep].color+'15',
-          borderWidth:2.5,pointRadius:4,fill:true,tension:.4,
-          animation:{onComplete(e){paintLabels(e.chart);}}
-        };
-      })
-    },
+  // Kategori Dağılımı — yatay bar, legend tıklamasıyla KPI + Trend filtresi
+  destroyChart('chRepCat');
+  const allCatData = REPS_ORDER.map(rep=>{
+    const recs=salesData.filter(r=>r.rep===rep);
+    return CAT_KEYS.map(c=>recs.filter(r=>getCat(r.satis_elemani)===c).reduce((s,r)=>s+r.tutar,0));
+  });
+  // Renkleri duruma göre hesaplayan yardımcı
+  function _catColors(activeCat){
+    return CAT_KEYS.map((cat,i)=>{
+      const on = activeCat==='ALL' || activeCat===cat;
+      return { bg: on ? PAL[i]+'dd' : PAL[i]+'18', border: on ? PAL[i] : PAL[i]+'22' };
+    });
+  }
+
+  const _catChartDatasets = ()=> CAT_KEYS.map((cat,i)=>{
+    const c = _catColors(_activeCat)[i];
+    return {
+      label: cat,
+      data: REPS_ORDER.map((_,ri)=>Math.round(allCatData[ri][i])),
+      backgroundColor: c.bg,
+      hoverBackgroundColor: c.bg,   // hover rengi = seçim rengi (değişmesin)
+      borderColor: c.border,
+      hoverBorderColor: c.border,
+      borderWidth: _activeCat!=='ALL' && cat===_activeCat ? 2 : 0,
+      borderRadius: 3
+    };
+  });
+
+  const _repCatChart = new Chart(document.getElementById('chRepCat'),{
+    type:'bar',
+    data:{ labels:REPS_ORDER.map(r=>REPS[r].label), datasets:_catChartDatasets() },
     options:{
-      responsive:true,maintainAspectRatio:false,
-      animation:{duration:700,easing:'easeOutQuart',onComplete(e){paintLabels(e.chart);}},
-      interaction:{mode:'index',intersect:false},
-      plugins:{legend:{position:'bottom',labels:{color:'#64748b',font:{size:11},boxWidth:12}},tooltip:{...TOOLTIP_STYLE}},
-      scales:SCALE_STYLE
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      animation:{duration:500,easing:'easeOutQuart'},
+      hover:{mode:'index', intersect:false},   // tooltip için index hover
+      plugins:{
+        legend:{
+          position:'bottom',
+          labels:{
+            color:'#64748b', font:{size:11}, boxWidth:12, padding:14,
+            generateLabels(chart){
+              return CAT_KEYS.map((cat,i)=>{
+                const isActive   = _activeCat==='ALL' || _activeCat===cat;
+                const isSelected = _activeCat===cat;
+                return {
+                  text:        cat,
+                  fillStyle:   isActive ? PAL[i]+'dd' : PAL[i]+'22',
+                  strokeStyle: isActive ? PAL[i]       : PAL[i]+'22',
+                  lineWidth:   0,
+                  fontColor:   isSelected ? PAL[i]
+                             : isActive   ? '#374151'
+                             :              '#c0c8d4',
+                  font:        isSelected ? {weight:'700', size:11} : {weight:'400', size:11},
+                  hidden:      false,
+                  datasetIndex:i
+                };
+              });
+            }
+          },
+          onClick(e, legendItem, legend){
+            const chart = legend.chart;
+            const clickedCat = CAT_KEYS[legendItem.datasetIndex];
+            _activeCat = _activeCat===clickedCat ? 'ALL' : clickedCat;
+            // Dataset renklerini güncelle — hover rengi de aynı anda set et
+            chart.data.datasets = _catChartDatasets();
+            chart.update('none');  // animasyonsuz güncelle (hover karışmasın)
+            const sub = document.getElementById('rep-cat-sub');
+            if(sub) sub.textContent = _activeCat==='ALL'
+              ? 'Tümü · Etiketlere tıklayarak filtreleyin'
+              : _activeCat+' seçili · Tekrar tıklayın → Tümü';
+            _updateRepKpisAndTrend();
+          }
+        },
+        tooltip:{...TOOLTIP_STYLE, mode:'index', intersect:false}
+      },
+      scales:{
+        x:{stacked:true, ticks:{color:'#8892b0',font:{size:10},callback:v=>'€'+fmtN(v)}, grid:{color:'#edf0f8'}},
+        y:{stacked:true, ticks:{color:'#64748b',font:{size:12}}, grid:{display:false}}
+      }
     }
   });
+
+  // KPI kartları ve Trend (başlangıçta Tümü)
+  _updateRepKpisAndTrend();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1753,17 +1901,17 @@ function renderMusteri(){
 
   // Pareto chart
   destroyChart('chPareto');
-  const top15=pareto.slice(0,15);
+  const top20=pareto.slice(0,20);
   new Chart(document.getElementById('chPareto'),{
     type:'bar',
     data:{
-      labels:top15.map(d=>shortN(d.name,16)),
+      labels:top20.map(d=>shortN(d.name,18)),
       datasets:[
-        {label:'Satış €',data:top15.map(d=>Math.round(d.total)),
-         backgroundColor:top15.map(d=>d.seg==='A'?C.green+'99':d.seg==='B'?C.blue+'99':C.gray+'99'),
-         borderColor:top15.map(d=>d.seg==='A'?C.green:d.seg==='B'?C.blue:C.gray),
+        {label:'Satış €',data:top20.map(d=>Math.round(d.total)),
+         backgroundColor:top20.map(d=>d.seg==='A'?C.green+'99':d.seg==='B'?C.blue+'99':C.gray+'99'),
+         borderColor:top20.map(d=>d.seg==='A'?C.green:d.seg==='B'?C.blue:C.gray),
          borderWidth:1,borderRadius:4,yAxisID:'y'},
-        {label:'Kümülatif %',data:top15.map(d=>Math.round(d.cumPct*10)/10),
+        {label:'Kümülatif %',data:top20.map(d=>Math.round(d.cumPct*10)/10),
          type:'line',borderColor:C.orange,borderWidth:2.5,
          pointBackgroundColor:C.orange,pointRadius:4,
          fill:false,tension:.35,yAxisID:'y2'}
@@ -1782,7 +1930,7 @@ function renderMusteri(){
         }}
       },
       scales:{
-        x:{ticks:{color:'#8892b0',font:{size:10},maxRotation:35},grid:{display:false}},
+        x:{ticks:{color:'#8892b0',font:{size:10},maxRotation:28,minRotation:0},grid:{display:false}},
         y:{position:'left',ticks:{color:'#8892b0',callback:v=>'€'+fmtN(v)},grid:{color:'#edf0f8'}},
         y2:{position:'right',min:0,max:100,ticks:{color:C.orange,callback:v=>v+'%'},grid:{display:false}}
       }
@@ -1811,16 +1959,16 @@ function renderMusteri(){
 // ══════════════════════════════════════════════════════════
 function getFilteredHar(){
   const q  =(document.getElementById('h-search')?.value||'').toLowerCase();
-  const rep= document.getElementById('h-rep')?.value||'';
   const ay = document.getElementById('h-ay')?.value||'';
   const kat= document.getElementById('h-kat')?.value||'';
-  return salesData.filter(r=>{
-    if(rep&&r.rep!==rep) return false;
-    if(q&&!r.cari.toLowerCase().includes(q)&&!r.urun.toLowerCase().includes(q)&&!r.aciklama.toLowerCase().includes(q)) return false;
+  let filtered = salesData.filter(r=>{
+    if(HAR_REP!=='ALL'&&r.rep!==HAR_REP) return false;
+    if(q&&!r.cari.toLowerCase().includes(q)&&!r.urun.toLowerCase().includes(q)&&!(r.aciklama||'').toLowerCase().includes(q)) return false;
     if(ay&&gm(r.tarih)!==ay) return false;
     if(kat&&!getCat(r.satis_elemani).includes(kat)) return false;
     return true;
   });
+  return applySortState(filtered, HAR_SORT);
 }
 
 function filterTable(){ renderHareketler(getFilteredHar()); }
@@ -1860,6 +2008,151 @@ function exportCSV(){
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
   a.download='TrioBRC_Satislar.csv'; a.click();
+}
+
+// ══════════════════════════════════════════════════════════
+// CSV İÇE AKTARMA
+// ══════════════════════════════════════════════════════════
+function importCSV(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=async function(e){
+    const text=e.target.result;
+    // BOM temizle
+    const clean=text.replace(/^﻿/,'');
+    const lines=clean.split(/\r?\n/).filter(l=>l.trim());
+    if(lines.length<2){ alert('Dosyada veri bulunamadı.'); return; }
+
+    // Başlık satırını parse et
+    function parseCSVLine(line){
+      const result=[]; let cur='', inQ=false;
+      for(let i=0;i<line.length;i++){
+        const ch=line[i];
+        if(ch==='"'){ if(inQ && line[i+1]==='"'){ cur+='"'; i++; } else inQ=!inQ; }
+        else if(ch===',' && !inQ){ result.push(cur); cur=''; }
+        else cur+=ch;
+      }
+      result.push(cur); return result;
+    }
+
+    // Başlık → iç alan adı eşleştirmesi (Türkçe karakter sorununu önlemek için sabit map)
+    const HDR_MAP={
+      'temsilci':'rep','tarih':'tarih',
+      'müşteri':'cari',      // müşteri
+      'ürün':'urun',         // ürün
+      'urun':'urun',
+      'miktar':'miktar','birim':'birim',
+      'br.fiyat':'birim_fiyat','birim fiyat':'birim_fiyat','birim_fiyat':'birim_fiyat',
+      'döviz':'doviz','doviz':'doviz', // döviz
+      'kur':'kur',
+      'tutar eur':'tutar','tutar':'tutar',
+      'kategori':'kategori',
+      'açıklama':'aciklama',  // açıklama
+      'aciklama':'aciklama'
+    };
+    const headers=parseCSVLine(lines[0]).map(h=>{
+      const k=h.trim().toLowerCase();
+      return HDR_MAP[k]||k;
+    });
+
+    // Temsilci etiket → key eşleştirme (açık liste)
+    const repMap={
+      'gökhan kaya':'GOKHAN_KAYA','gokhan kaya':'GOKHAN_KAYA','gökhan kaya':'GOKHAN_KAYA',
+      'hakan kemer':'HAKAN_KEMER',
+      'house account':'HOUSE_ACCOUNT',
+      'kutsİ_devecİ':'KUTSİ_DEVECİ','kutsi deveci':'KUTSİ_DEVECİ','kutsi_deveci':'KUTSİ_DEVECİ',
+      'gokhan_kaya':'GOKHAN_KAYA','hakan_kemer':'HAKAN_KEMER','house_account':'HOUSE_ACCOUNT'
+    };
+    Object.entries(REPS).forEach(([k,v])=>{
+      repMap[v.label.toLowerCase()]=k;
+      repMap[k.toLowerCase()]=k;
+    });
+
+    // Kategori etiket normalleştirme (CSV'deki "Kategori" sütunu → satis_elemani için)
+    // Örnek CSV değeri: "M. Kimyasal" → "M. KİMYASAL"
+    const katNorm={'m. kimyasal':'M. KİMYASAL','m. sözleşme':'M. SÖZLEŞME','m. ekipman':'M. EKİPMAN',
+                   'y. kimyasal':'Y. KİMYASAL','y. sözleşme':'Y. SÖZLEŞME','y. ekipman':'Y. EKİPMAN',
+                   'm.kimyasal':'M. KİMYASAL','m.sözleşme':'M. SÖZLEŞME','m.ekipman':'M. EKİPMAN',
+                   'y.kimyasal':'Y. KİMYASAL','y.sözleşme':'Y. SÖZLEŞME','y.ekipman':'Y. EKİPMAN',
+                   'kimyasal':'M. KİMYASAL','sözleşme':'M. SÖZLEŞME','ekipman':'M. EKİPMAN'};
+    const repDisplayNames={GOKHAN_KAYA:'GÖKHAN KAYA',HAKAN_KEMER:'HAKAN KEMER',
+                           HOUSE_ACCOUNT:'HOUSE ACCOUNT','KUTSİ_DEVECİ':'KUTSİ DEVECİ'};
+
+    const toInsert=[]; const errors=[];
+    for(let i=1;i<lines.length;i++){
+      const vals=parseCSVLine(lines[i]);
+      const row={};
+      headers.forEach((h,idx)=>{ row[h]=(vals[idx]||'').trim(); });
+
+      // Temsilci çöz (toLocaleLowerCase('tr') Türkçe İ/i, Ö/ö vb. için güvenli)
+      const repRaw=(row.rep||'').trim();
+      const repKey=repMap[repRaw.toLocaleLowerCase('tr')]||repMap[repRaw.toLowerCase()];
+      if(!repKey){ errors.push('Satır '+(i+1)+': Temsilci tanınmadı → "'+repRaw+'" (headers:'+JSON.stringify(headers)+')'); continue; }
+
+      // Tarih doğrula (YYYY-MM-DD)
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(row.tarih||'')){ errors.push('Satır '+(i+1)+': Tarih formatı yanlış → "'+row.tarih+'" (YYYY-MM-DD olmalı)'); continue; }
+
+      const tutar=parseFloat((row.tutar||'0').replace(',','.'));
+      const miktar=parseFloat((row.miktar||'1').replace(',','.'));
+      const birim_fiyat=parseFloat((row.birim_fiyat||'0').replace(',','.'));
+      const kur=parseFloat((row.kur||'1').replace(',','.'));
+
+      // satis_elemani oluştur: "GÖKHAN KAYA - M. KİMYASAL" formatında
+      // Önce mevcut satis_elemani sütununa bak, yoksa kategori sütunundan üret
+      let satisEl=row.satis_elemani||'';
+      if(!satisEl){
+        const katKey=katNorm[(row.kategori||'').toLowerCase()]||'M. KİMYASAL';
+        satisEl=(repDisplayNames[repKey]||repKey)+' - '+katKey;
+      }
+
+      toInsert.push({
+        rep: repKey,
+        tarih: row.tarih,
+        cari: row.cari||'',
+        urun: row.urun||'',
+        miktar: isNaN(miktar)?1:miktar,
+        birim: row.birim||'adet',
+        birim_fiyat: isNaN(birim_fiyat)?0:birim_fiyat,
+        doviz: row.doviz||'EUR',
+        kur: isNaN(kur)?1:kur,
+        tutar: isNaN(tutar)?0:tutar,
+        satis_elemani: satisEl,
+        aciklama: row.aciklama||''
+      });
+    }
+
+    if(errors.length){
+      const msg='Bazı satırlar atlandı:\n'+errors.slice(0,10).join('\n')+(errors.length>10?'\n...(+'+(errors.length-10)+' daha)':'');
+      if(!confirm(msg+'\n\nDevam et ve geçerli '+toInsert.length+' satırı ekle?')){ input.value=''; return; }
+    }
+
+    if(toInsert.length===0){ alert('Eklenecek geçerli satır bulunamadı.'); input.value=''; return; }
+
+    // Supabase'e toplu kaydet
+    let added=0, failed=0;
+    for(let i=0;i<toInsert.length;i+=100){
+      const chunk=toInsert.slice(i,i+100);
+      try{
+        const {data,error}=await _sb.from('satis_hareketleri').insert(chunk).select();
+        if(error) throw error;
+        data.forEach(d=>{
+          salesData.push({_id:d.id,rep:d.rep,tarih:d.tarih,cari:d.cari,urun:d.urun,
+            miktar:d.miktar,birim:d.birim,birim_fiyat:d.birim_fiyat,doviz:d.doviz,
+            kur:d.kur,tutar:d.tutar,satis_elemani:d.satis_elemani,aciklama:d.aciklama});
+        });
+        added+=data.length;
+      } catch(err){
+        failed+=chunk.length;
+        console.error('Import chunk error:',err);
+        if(failed===chunk.length) alert('Supabase hatası: '+(err.message||JSON.stringify(err)));
+      }
+    }
+
+    input.value='';
+    renderHareketler(); renderHedefler(); renderGenel();
+    alert('✅ '+added+' satış kaydedildi.'+(failed?' ⚠️ '+failed+' satır başarısız oldu.':''));
+  };
+  reader.readAsText(file,'UTF-8');
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2071,6 +2364,11 @@ let _chPipC, _chPipA;
 let potEditId=null;
 
 let PIPE_REP = 'ALL';
+let HAR_REP = 'ALL';
+
+// Sort state: { field, dir } dir = 'asc'|'desc'|null
+let PIPE_SORT = { field: null, dir: null };
+let HAR_SORT  = { field: null, dir: null };
 
 function switchPipeRep(rep, el){
   PIPE_REP = rep;
@@ -2078,6 +2376,151 @@ function switchPipeRep(rep, el){
   if(el) el.classList.add('active');
   renderPipeline();
 }
+
+function switchHarRep(rep, el){
+  HAR_REP = rep;
+  document.getElementById('har-tabs').querySelectorAll('.rep-tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  filterTable();
+}
+
+// Sort helper
+function applySortState(arr, sort){
+  if(!sort.field||!sort.dir) return arr;
+  return [...arr].sort((a,b)=>{
+    let va=a[sort.field], vb=b[sort.field];
+    if(typeof va==='string') va=va.toLowerCase();
+    if(typeof vb==='string') vb=vb.toLowerCase();
+    if(va<vb) return sort.dir==='asc'?-1:1;
+    if(va>vb) return sort.dir==='asc'?1:-1;
+    return 0;
+  });
+}
+
+function updateSortUI(prefix, sort, fields){
+  fields.forEach(f=>{
+    const th=document.getElementById(prefix+f);
+    if(!th) return;
+    th.classList.remove('sort-asc','sort-desc');
+    if(sort.field===f){
+      th.classList.add(sort.dir==='asc'?'sort-asc':'sort-desc');
+    }
+  });
+}
+
+function sortPipe(field){
+  if(PIPE_SORT.field===field){
+    PIPE_SORT.dir = PIPE_SORT.dir==='asc'?'desc':PIPE_SORT.dir==='desc'?null:null;
+    if(PIPE_SORT.dir===null) PIPE_SORT.field=null;
+  } else {
+    PIPE_SORT = {field, dir:'asc'};
+  }
+  updateSortUI('pth-',PIPE_SORT,['cari','firsat','ceyrek','tutar','olasilik','asama']);
+  renderPipeline();
+}
+
+function sortHar(field){
+  if(HAR_SORT.field===field){
+    HAR_SORT.dir = HAR_SORT.dir==='asc'?'desc':HAR_SORT.dir==='desc'?null:null;
+    if(HAR_SORT.dir===null) HAR_SORT.field=null;
+  } else {
+    HAR_SORT = {field, dir:'asc'};
+  }
+  updateSortUI('hth-',HAR_SORT,['rep','tarih','cari','urun','tutar']);
+  filterTable();
+}
+
+// Quarter → month mapping
+const CEYREK_AYLAR = {
+  'Q1': [{num:'01',ad:'Ocak'},{num:'02',ad:'Şubat'},{num:'03',ad:'Mart'}],
+  'Q2': [{num:'04',ad:'Nisan'},{num:'05',ad:'Mayıs'},{num:'06',ad:'Haziran'}],
+  'Q3': [{num:'07',ad:'Temmuz'},{num:'08',ad:'Ağustos'},{num:'09',ad:'Eylül'}],
+  'Q4': [{num:'10',ad:'Ekim'},{num:'11',ad:'Kasım'},{num:'12',ad:'Aralık'}]
+};
+
+function updatePmAyButtons(selectMonth){
+  const ceyrekVal = document.getElementById('pm-ceyrek').value; // e.g. 'Q3 2026'
+  const parts = ceyrekVal.split(' '); // ['Q3','2026']
+  const q = parts[0]; const yil = parts[1]||'2026';
+  const aylar = CEYREK_AYLAR[q]||CEYREK_AYLAR['Q3'];
+  const container = document.getElementById('pm-ay-buttons');
+  container.innerHTML = '';
+  aylar.forEach(ay=>{
+    const btn = document.createElement('button');
+    btn.type='button';
+    btn.className='ay-btn';
+    btn.dataset.val = yil+'-'+ay.num; // 'YYYY-MM'
+    btn.textContent = ay.ad;
+    btn.onclick = function(){
+      container.querySelectorAll('.ay-btn').forEach(b=>b.classList.remove('active'));
+      this.classList.add('active');
+    };
+    container.appendChild(btn);
+  });
+  // Activate a specific month if given, otherwise first of quarter
+  const target = selectMonth||( yil+'-'+aylar[0].num );
+  const toActivate = container.querySelector('[data-val="'+target+'"]') || container.firstChild;
+  if(toActivate) toActivate.classList.add('active');
+}
+
+// Core: add a pipeline item to satis_hareketleri
+const repNames={GOKHAN_KAYA:'GÖKHAN KAYA',HAKAN_KEMER:'HAKAN KEMER',HOUSE_ACCOUNT:'HOUSE ACCOUNT','KUTSİ_DEVECİ':'KUTSİ DEVECİ'};
+async function _addPotToSales(p, tarih){
+  const newRow={
+    rep: p.rep,
+    sira: salesData.filter(x=>x.rep===p.rep).length+1,
+    cari: p.cari,
+    tarih: tarih, // 'YYYY-MM-DD'
+    urun: p.firsat,
+    miktar: 1,
+    birim: 'Adet',
+    birim_fiyat: p.tutar,
+    doviz: 'EUR',
+    kur: 1,
+    tutar: p.tutar,
+    satis_elemani: repNames[p.rep]+' - '+(p.kat||''),
+    aciklama: 'Pipeline\'dan: '+p.firsat,
+    _id: 'tmp_'+Date.now()
+  };
+  salesData.unshift(newRow);
+  lsSet(LS.SALES, salesData);
+  await dbSaveRow(newRow);
+  return newRow;
+}
+
+// Mevcut "Kapandı" pipeline kayıtlarını Satış Hareketleri'ne aktar
+async function migrateKapandiToSales(){
+  // Daha önce pipeline'dan eklenen satışların fırsat adlarını bul
+  const alreadyAdded = new Set(salesData.filter(s=>s.aciklama&&s.aciklama.startsWith("Pipeline'dan:")).map(s=>s.aciklama.replace("Pipeline'dan:","").trim()));
+  const kapandilar = potData.filter(p=>p.asama==='Kapandı' && p.olasilik===100);
+  const bekleyenler = kapandilar.filter(p=>!alreadyAdded.has(p.firsat));
+
+  if(bekleyenler.length===0){
+    showToast('✓ Tüm Kapandı fırsatlar zaten Satış Hareketleri\'nde','s');
+    return;
+  }
+  if(!confirm(bekleyenler.length+' adet Kapandı fırsat Satış Hareketleri\'ne eklenecek. Devam?')) return;
+
+  let added=0;
+  for(const p of bekleyenler){
+    // ceyrek'ten ay belirle: 'Q3 2026' → '2026-07'
+    const qparts = (p.ceyrek||'Q3 2026').split(' ');
+    const q=qparts[0]; const yil=qparts[1]||'2026';
+    const ayMap={'Q1':'01','Q2':'04','Q3':'07','Q4':'10'};
+    const tarih = p.satis_ay ? p.satis_ay+'-01' : yil+'-'+(ayMap[q]||'01')+'-01';
+    await _addPotToSales(p, tarih);
+    added++;
+  }
+  lsSet(LS.SALES, salesData);
+  try{ renderHedefler(); }catch(e){}
+  const ap=document.querySelector('.page.active');
+  if(ap && (ap.id==='page-hareketler')) renderPage('hareketler');
+  showToast('✅ '+added+' fırsat Satış Hareketleri\'ne eklendi','s');
+  renderPipeline();
+}
+
+// %100 olasılık seçildiğinde: _addPotToSales → salesData'ya eklenir
+// salesData değiştiğinde mTotals() otomatik güncellenir → Hedef Yönetimi'ne yansır
 
 function renderPipeline(){
   const asama  = document.getElementById('pipe-asama')?.value||'';
@@ -2146,25 +2589,27 @@ function renderPipeline(){
 
   // Table
   const ABADGE={Teklif:'pot-badge-teklif',Görüşme:'pot-badge-gorusme',Sıcak:'pot-badge-sicak',Kapandı:'pot-badge-kapandi',Kayıp:'pot-badge-kayip'};
+  const sortedRows = applySortState(rows, PIPE_SORT);
   const tbody=document.getElementById('pipe-tbody');
-  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text3)">Henüz fırsat yok. "+ Fırsat Ekle" ile başlayın.</td></tr>`; return; }
-  tbody.innerHTML=rows.map(p=>`<tr>
+  if(!sortedRows.length){ tbody.innerHTML=`<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text3)">Henüz fırsat yok. "+ Fırsat Ekle" ile başlayın.</td></tr>`; return; }
+  tbody.innerHTML=sortedRows.map(p=>`<tr>
     <td><span class="rep-badge rb-${REPS[p.rep]?.cls||'gk'}">${repLbl(p.rep).split(' ')[0]}</span></td>
     <td class="td-name" title="${p.cari}">${shortN(p.cari,20)}</td>
     <td title="${p.firsat}" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)">${p.firsat}</td>
     <td><span class="pill pill-kim" style="font-size:9px">${(p.kat||'').split('. ')[1]||p.kat||'—'}</span></td>
     <td class="td-dim">${p.ceyrek}</td>
-    <td style="text-align:right" class="td-num" style="color:${C.orange}">${fmt(p.tutar)}</td>
+    <td style="text-align:right" class="td-num">${fmt(p.tutar)}</td>
     <td style="text-align:center">
       <span style="font-family:var(--mono);font-size:11px;font-weight:700;
         color:${p.olasilik>=75?'var(--green)':p.olasilik>=50?'var(--orange)':'var(--text3)'}">
         %${p.olasilik}${p.olasilik>=75?' ★':''}
       </span>
     </td>
-
     <td><span class="pill ${ABADGE[p.asama]||''}" style="font-size:9px">${p.asama}</span></td>
     <td class="td-dim" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.not||''}">${p.not||'—'}</td>
-    <td><button class="btn btn-icon btn-warn" onclick="openPotModal('${p._pid}')">✏️</button></td>
+    <td>
+      <button class="btn btn-icon btn-warn" onclick="openPotModal('${p._pid}')" title="Düzenle">✏️</button>
+    </td>
   </tr>`).join('');
 }
 
@@ -2184,10 +2629,13 @@ function openPotModal(pid){
     document.getElementById('pm-tutar').value=p.tutar;
     document.getElementById('pm-olasilik').value=p.olasilik;
     document.getElementById('pm-not').value=p.not||'';
+    // Satış ayı butonları
+    updatePmAyButtons(p.satis_ay||null);
   } else {
     ['pm-cari','pm-firsat','pm-not'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('pm-tutar').value='0';
     document.getElementById('pm-olasilik').value='50';
+    updatePmAyButtons();
   }
   document.getElementById('potModal').classList.add('open');
 }
@@ -2304,35 +2752,6 @@ deleteFromMini = async function(){
   showToast('🗑 Silindi','e');
 };
 
-savePotModal = async function(){
-  const cari=document.getElementById('pm-cari').value.trim();
-  const firsat=document.getElementById('pm-firsat').value.trim();
-  if(!cari||!firsat){ showToast('Müşteri ve fırsat adı zorunludur','e'); return; }
-  const obj={
-    rep:document.getElementById('pm-rep').value,
-    ceyrek:document.getElementById('pm-ceyrek').value,
-    cari, firsat,
-    kat:document.getElementById('pm-kat').value,
-    asama:document.getElementById('pm-asama').value,
-    tutar:parseFloat(document.getElementById('pm-tutar').value)||0,
-    olasilik:parseFloat(document.getElementById('pm-olasilik').value)||50,
-    not:document.getElementById('pm-not').value.trim()
-  };
-  if(potEditId!==null){
-    const idx=potData.findIndex(x=>x._pid===potEditId);
-    if(idx>=0) potData[idx]={...potData[idx],...obj};
-    await dbSavePot(potData[idx>=0?idx:0]);
-    showToast('✓ Fırsat güncellendi','s');
-  } else {
-    obj._pid='tmp_'+Date.now();
-    potData.unshift(obj);
-    await dbSavePot(obj);
-    showToast('✓ Fırsat eklendi','s');
-  }
-  lsSet(LS.POT, potData);
-  closePotModal(); renderPotansiyel();
-};
-
 deletePot = async function(){
   if(potEditId===null) return;
   if(!confirm('Bu fırsatı silmek istiyor musunuz?')) return;
@@ -2344,13 +2763,14 @@ deletePot = async function(){
   showToast('🗑 Fırsat silindi','e');
 };
 
-
-
-// savePotModal & deletePot async overrides
 savePotModal = async function(){
   const cari=document.getElementById('pm-cari').value.trim();
   const firsat=document.getElementById('pm-firsat').value.trim();
   if(!cari||!firsat){showToast('Müşteri ve fırsat adı zorunludur','e');return;}
+  const olasilik=parseFloat(document.getElementById('pm-olasilik').value)||50;
+  // Ay butonlarından seçili ayı oku
+  const activeAyBtn=document.querySelector('#pm-ay-buttons .ay-btn.active');
+  const satis_ay=activeAyBtn ? activeAyBtn.dataset.val : ''; // 'YYYY-MM'
   const obj={
     rep:document.getElementById('pm-rep').value,
     ceyrek:document.getElementById('pm-ceyrek').value,
@@ -2358,9 +2778,15 @@ savePotModal = async function(){
     kat:document.getElementById('pm-kat').value,
     asama:document.getElementById('pm-asama').value,
     tutar:parseFloat(document.getElementById('pm-tutar').value)||0,
-    olasilik:parseFloat(document.getElementById('pm-olasilik').value)||50,
+    olasilik,
+    satis_ay: satis_ay,
     not:document.getElementById('pm-not').value.trim()
   };
+
+  // Kaydedilmiş önceki durumu al (güncelleme ise)
+  const prevPot = potEditId!==null ? potData.find(x=>x._pid===potEditId) : null;
+  const wasAlready100 = prevPot?.olasilik===100 && prevPot?.asama==='Kapandı';
+
   if(potEditId!==null){
     const idx=potData.findIndex(x=>x._pid===potEditId);
     if(idx>=0)potData[idx]={...potData[idx],...obj};
@@ -2373,7 +2799,28 @@ savePotModal = async function(){
     showToast('✓ Fırsat eklendi','s');
   }
   lsSet(LS.POT,potData);
-  closePotModal();renderPipeline();
+
+  // Otomatik satışa dönüştür: %100 ve henüz dönüştürülmemiş
+  if(olasilik===100 && !wasAlready100){
+    const tarih = satis_ay ? satis_ay+'-01' : new Date().toISOString().slice(0,10);
+    const savedPot = potData.find(x=>x._pid===(potEditId||obj._pid));
+    if(savedPot){
+      await _addPotToSales({...savedPot,...obj}, tarih);
+      // Aşamayı Kapandı yap
+      const idx2=potData.findIndex(x=>x._pid===savedPot._pid);
+      if(idx2>=0) potData[idx2].asama='Kapandı';
+      await dbSavePot(potData[idx2>=0?idx2:0]);
+      lsSet(LS.POT,potData);
+      // Hedef Yönetimi'ni de güncelle (salesData değişti)
+      try{ renderHedefler(); }catch(e){}
+      showToast('✅ %100 kesin: Satış Hareketleri ve Hedef Yönetimi\'ne eklendi','s');
+    }
+  }
+
+  closePotModal(); renderPipeline();
+  // Aktif sayfa hedefler veya hareketler ise yenile
+  const ap=document.querySelector('.page.active');
+  if(ap && (ap.id==='page-hedefler'||ap.id==='page-hareketler')) renderPage(ap.id.replace('page-',''));
 };
 
 deletePot = async function(){
