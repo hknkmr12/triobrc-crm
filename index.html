@@ -233,7 +233,7 @@ body {
 
 /* ── GRID ───────────────────────────────────────────────── */
 .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-.g3 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+.g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 16px; }
 .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 16px; }
 .g-60-40 { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; margin-bottom: 16px; }
 
@@ -591,31 +591,34 @@ tr:hover td { background: #f8faff; }
   <div style="padding:0">
     <!-- KPI Row: 6 cards -->
     <div class="kpi-row" id="genel-kpis"></div>
-    <!-- Main charts -->
-    <div class="g3" style="margin-bottom:16px">
+    <!-- Main charts: Trend (geniş) + Şirket hedef gauge -->
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
       <div class="card">
         <div class="card-header">
           <span class="card-title">Aylık Satış Trendi</span>
           <button class="ch-eye" onclick="toggleLabels('chMonthly',this)">👁</button>
         </div>
         <div class="card-body">
-          <div class="ch-wrap" style="height:220px"><canvas id="chMonthly"></canvas></div>
+          <div class="ch-wrap" style="height:240px"><canvas id="chMonthly"></canvas></div>
         </div>
       </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Şirket Hedef Durumu</span></div>
+        <div class="card-body" id="genel-gauge-wrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 8px 8px"></div>
+      </div>
+    </div>
+    <!-- Bottom row: Kategori bar + Top10 + Aylık ilerleme -->
+    <div class="g3" style="margin-bottom:16px">
       <div class="card">
         <div class="card-header"><span class="card-title">Kategori Dağılımı</span></div>
         <div class="card-body">
-          <div class="ch-wrap" style="height:160px"><canvas id="chCatDonut"></canvas></div>
-          <div id="catLegend" style="margin-top:10px"></div>
+          <div class="ch-wrap" style="height:200px"><canvas id="chCatBar"></canvas></div>
         </div>
       </div>
-    </div>
-    <!-- Bottom row -->
-    <div class="g2">
       <div class="card">
         <div class="card-header">
-          <span class="card-title">Top 5 Müşteri</span>
-          <span class="card-sub">Tutar bazında</span>
+          <span class="card-title">Top 10 Müşteri</span>
+          <span class="card-sub">Tutar · Toplam pay %</span>
         </div>
         <div class="card-body" id="genel-top5"></div>
       </div>
@@ -1500,7 +1503,11 @@ function renderGenel(){
   const filtPot = repSel==='ALL' ? potData : potData.filter(p=>p.rep===repSel);
   const pipeVal = filtPot.filter(p=>p.asama!=='Kayıp'&&p.asama!=='Kapandı').reduce((s,p)=>s+p.tutar,0);
 
-  // KPI cards
+  // KPI cards — canlı renkler
+  const kpiColorMap = {
+    'kc-blue':C.blue, 'kc-green':C.green, 'kc-orange':C.orange,
+    'kc-purple':C.purple, 'kc-red':C.red, 'kc-gray':'var(--text)'
+  };
   document.getElementById('genel-kpis').innerHTML = [
     { label:'Toplam Satış (2026)', val:fmt(total), sub:data.length+' hareket', color:'kc-blue',
       delta: pct!==null ? {txt:pct+'% hedef', cls:pct>=80?'delta-up':pct>=50?'delta-warn':'delta-down'} : null },
@@ -1513,7 +1520,7 @@ function renderGenel(){
   ].map((k,i)=>`
     <div class="kpi-card ${k.color}" style="animation-delay:${i*.04}s">
       <div class="kpi-label">${k.label}</div>
-      <div class="kpi-value" style="color:${k.color==='kc-blue'?C.blue:k.color==='kc-green'?C.green:k.color==='kc-orange'?C.orange:k.color==='kc-purple'?C.purple:k.color==='kc-red'?C.red:'var(--text)'}">${k.val}</div>
+      <div class="kpi-value" style="color:${kpiColorMap[k.color]||'var(--text)'};font-weight:800">${k.val}</div>
       <div class="kpi-sub">${k.sub}</div>
       ${k.delta?`<span class="kpi-delta ${k.delta.cls}">${k.delta.txt}</span>`:''}
     </div>`).join('');
@@ -1530,8 +1537,9 @@ function renderGenel(){
   }];
   if(mH.some(v=>v>0)) ds.push({
     label:'Hedef', data:mH, type:'line',
-    borderColor:C.orange, borderWidth:2,
-    pointRadius:4, fill:false, tension:.35,
+    borderColor:'#e03535', borderWidth:2,
+    pointRadius:5, pointBackgroundColor:'#e03535', pointBorderColor:'#e03535',
+    pointHoverRadius:7, fill:false, tension:.35,
     borderDash:[5,4]
   });
   _chM = new Chart(document.getElementById('chMonthly'),{
@@ -1548,42 +1556,95 @@ function renderGenel(){
     }
   });
 
-  // Category donut
-  destroyChart('chCatDonut');
+  // Kategori Dağılımı — yatay bar (Genel Bakış)
+  destroyChart('chCatBar');
   const catMap = {};
   data.forEach(r=>{ const c=getCat(r.satis_elemani)||'Diğer'; catMap[c]=(catMap[c]||0)+r.tutar; });
   const cKeys = Object.keys(catMap).sort((a,b)=>catMap[b]-catMap[a]);
-  _chCat = new Chart(document.getElementById('chCatDonut'),{
-    type:'doughnut',
-    data:{labels:cKeys,datasets:[{data:cKeys.map(k=>Math.round(catMap[k])),backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]},
+  _chCat = new Chart(document.getElementById('chCatBar'),{
+    type:'bar',
+    data:{
+      labels: cKeys,
+      datasets:[{
+        label:'Satış (€)',
+        data: cKeys.map(k=>Math.round(catMap[k])),
+        backgroundColor: PAL.slice(0,cKeys.length).map(c=>c+'cc'),
+        hoverBackgroundColor: PAL.slice(0,cKeys.length),
+        borderColor: PAL.slice(0,cKeys.length),
+        borderWidth:0, borderRadius:5,
+      }]
+    },
     options:{
-      responsive:true,maintainAspectRatio:false,cutout:'60%',
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
       animation:{duration:600,easing:'easeOutQuart'},
       plugins:{
         legend:{display:false},
-        tooltip:{...TOOLTIP_STYLE,callbacks:{label:ctx=>ctx.label+': '+fmt(ctx.parsed)}}
+        tooltip:{...TOOLTIP_STYLE, callbacks:{label:ctx=>fmt(ctx.parsed.x)}}
+      },
+      scales:{
+        x:{
+          grid:{color:'rgba(0,0,0,.05)'},
+          ticks:{color:'#8892b0',font:{size:10},callback:v=>v>=1000?Math.round(v/1000)+'k':v}
+        },
+        y:{
+          grid:{display:false},
+          ticks:{color:'#374151',font:{size:11,weight:'500'}}
+        }
       }
     }
   });
-  document.getElementById('catLegend').innerHTML = cKeys.slice(0,4).map((k,i)=>`
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-      <div style="width:8px;height:8px;border-radius:50%;background:${PAL[i]};flex-shrink:0"></div>
-      <span style="font-size:11px;color:var(--text2);flex:1">${k}</span>
-      <span style="font-size:11px;font-family:var(--mono);font-weight:600;color:var(--text)">${fmt(catMap[k])}</span>
-    </div>`).join('');
 
-  // Top 5
+  // Şirket hedef gauge (SVG doughnut)
+  const gaugeEl = document.getElementById('genel-gauge-wrap');
+  if(gaugeEl){
+    const yHg  = repSel==='ALL' ? getTotalYearTarget() : getRepYearTarget(repSel);
+    const actPct = yHg>0 ? (total/yHg*100) : null;
+    const dispPct = actPct!==null ? Math.round(actPct) : null;
+    const gaugeColor = actPct===null ? '#94a3b8' : actPct>=100 ? C.green : actPct>=70 ? C.orange : '#e03535';
+    const R=68, stroke=14, cx=80, cy=80;
+    const circ = Math.PI*R; // semicircle
+    const filled = actPct!==null ? Math.min(actPct/100, 1.15)*circ : 0; // allow slight overflow for >100%
+    const trackFill = actPct!==null && actPct>100 ? C.green : '#e4e8f2';
+    gaugeEl.innerHTML = `
+      <svg width="160" height="90" viewBox="0 0 160 90" style="overflow:visible">
+        <path d="M ${cx-R},${cy} A ${R},${R} 0 0,1 ${cx+R},${cy}"
+          fill="none" stroke="${trackFill}" stroke-width="${stroke}" stroke-linecap="round"/>
+        <path d="M ${cx-R},${cy} A ${R},${R} 0 0,1 ${cx+R},${cy}"
+          fill="none" stroke="${gaugeColor}" stroke-width="${stroke}" stroke-linecap="round"
+          stroke-dasharray="${filled} ${circ}"
+          style="transition:stroke-dasharray .8s ease"/>
+        <text x="${cx}" y="${cy-8}" text-anchor="middle" font-family="Inter,sans-serif" font-size="26" font-weight="800" fill="${gaugeColor}">${dispPct!==null?dispPct+'%':'—'}</text>
+        <text x="${cx}" y="${cy+8}" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#8892b0">ULAŞILDI</text>
+      </svg>
+      <div style="text-align:center;margin-top:6px">
+        <div style="font-size:13px;font-weight:700;color:var(--text)">${fmt(total)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${yHg>0?'Hedef: '+fmt(yHg):'Hedef girilmedi'}</div>
+        ${yHg>0&&total<yHg?`<div style="font-size:10px;color:#e03535;margin-top:3px">Kalan: ${fmt(yHg-total)}</div>`:''}
+        ${yHg>0&&total>=yHg?`<div style="font-size:10px;color:${C.green};font-weight:700;margin-top:3px">✓ Hedef aşıldı!</div>`:''}
+      </div>`;
+  }
+
+  // Top 10 Müşteri + yüzde
   const cust={};
   data.forEach(r=>{ cust[r.cari]=(cust[r.cari]||0)+r.tutar; });
-  const top5 = Object.entries(cust).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const t5max = top5[0]?.[1]||1;
-  document.getElementById('genel-top5').innerHTML = top5.map(([n,v],i)=>`
-    <div class="prog-row">
-      <div class="prog-label"><span title="${n}">${shortN(n)}</span><span class="prog-pct" style="color:${PAL[i]}">${fmt(v)}</span></div>
-      <div class="prog-bar"><div class="prog-fill" style="width:${v/t5max*100}%;background:${PAL[i]}"></div></div>
-    </div>`).join('');
+  const top10 = Object.entries(cust).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const t10max = top10[0]?.[1]||1;
+  document.getElementById('genel-top5').innerHTML = top10.map(([n,v],i)=>{
+    const sharePct = total>0 ? (v/total*100).toFixed(1) : '0.0';
+    return `<div class="prog-row">
+      <div class="prog-label">
+        <span title="${n}">${shortN(n)}</span>
+        <span style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">${sharePct}%</span>
+          <span class="prog-pct" style="color:${PAL[i%PAL.length]}">${fmt(v)}</span>
+        </span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${v/t10max*100}%;background:${PAL[i%PAL.length]}"></div></div>
+    </div>`;
+  }).join('');
 
-  // Hedef progress
+  // Aylık hedef ilerleme — gerçek % (>100 gösterilir, bar %100'de kırpılır)
   const yH2 = repSel==='ALL' ? getTotalYearTarget() : getRepYearTarget(repSel);
   document.getElementById('genel-hed-sub').textContent = yH2>0 ? 'Hedef: '+fmt(yH2) : 'Hedef girilmedi';
   const hasH = months9.some(m=>getMonthTarget(repSel,m)>0);
@@ -1591,11 +1652,13 @@ function renderGenel(){
     ? months9.map(m=>{
         const h=getMonthTarget(repSel,m), a=mAct[m]||0;
         if(!h&&!a) return '';
-        const p=h>0?Math.min(100,Math.round(a/h*100)):100;
-        const col=p>=100?C.green:p>=70?C.orange:C.red;
+        const realPct = h>0 ? Math.round(a/h*100) : null;
+        const barW    = realPct!==null ? Math.min(100,realPct) : 100;
+        const col     = realPct===null ? C.blue : realPct>=100 ? C.green : realPct>=70 ? C.orange : C.red;
+        const dispTxt = realPct!==null ? realPct+'%' : fmt(a);
         return `<div class="prog-row">
-          <div class="prog-label"><span>${MONTHS[parseInt(m)]}</span><span class="prog-pct" style="color:${col}">${h>0?p+'%':fmt(a)}</span></div>
-          <div class="prog-bar"><div class="prog-fill" style="width:${p}%;background:${col}"></div></div>
+          <div class="prog-label"><span>${MONTHS[parseInt(m)]}</span><span class="prog-pct" style="color:${col};font-weight:${realPct>=100?'700':'500'}">${dispTxt}</span></div>
+          <div class="prog-bar"><div class="prog-fill" style="width:${barW}%;background:${col}"></div></div>
           ${h>0?`<div style="font-size:10px;color:var(--text3);text-align:right;margin-top:2px">${fmt(a)} / ${fmt(h)}</div>`:''}
         </div>`;
       }).join('')
