@@ -1627,12 +1627,14 @@ function renderGenel(){
       <svg width="140" height="140" viewBox="0 0 140 140">
         <!-- Gri track (tamamlanmayan kısım) -->
         <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
-          stroke="#e4e8f2" stroke-width="${stroke}"/>
-        <!-- Renkli dolgu (tamamlanan kısım) -->
+          stroke="#e4e8f2" stroke-width="${stroke}"
+          transform="rotate(-90 ${cx} ${cy})"/>
+        <!-- Renkli dolgu (tamamlanan kısım) — saat 12'den saat yönünde -->
         <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
           stroke="${gaugeCol}" stroke-width="${stroke}" stroke-linecap="round"
           stroke-dasharray="${filled.toFixed(2)} ${circ.toFixed(2)}"
-          stroke-dashoffset="${offset.toFixed(2)}"
+          stroke-dashoffset="0"
+          transform="rotate(-90 ${cx} ${cy})"
           style="transition:stroke-dasharray .9s ease"/>
         <!-- Yüzde — siyah -->
         <text x="${cx}" y="${cy-5}" text-anchor="middle"
