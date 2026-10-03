@@ -412,11 +412,42 @@ tr:hover td { background: #f8faff; }
 }
 .bullet-fill { height: 100%; border-radius: 4px; transition: width .8s ease; }
 .bullet-target {
-  position: absolute; top: -2px; height: calc(100% + 4px); width: 2px;
-  background: var(--red); opacity: .6;
+  position: absolute; top: -2px; height: calc(100% + 4px); width: 3px;
+  background: #0f1623; opacity: .75; border-radius: 2px;
+}
+.bullet-target-label {
+  position: absolute; top: -16px; font-size: 9px; font-weight: 700;
+  color: #0f1623; transform: translateX(-50%); white-space: nowrap;
+}
+.bullet-overflow {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  font-size: 9px; font-weight: 800; color: var(--green);
+  background: var(--green-l); padding: 1px 5px; border-radius: 8px;
 }
 .bullet-meta { display: flex; justify-content: space-between; margin-top: 3px; }
 .bullet-meta span { font-size: 10px; color: var(--text3); }
+
+/* ── KATEGORİ FİLTRE BANNER ────────────────────────────── */
+#cat-filter-banner {
+  display: none; position: sticky; top: 0; z-index: 50;
+  margin: -8px -8px 12px -8px;
+  padding: 10px 20px;
+  background: linear-gradient(90deg, #1e6fd920 0%, #1e6fd908 100%);
+  border-bottom: 2px solid var(--blue);
+  border-radius: 0;
+  align-items: center; gap: 10px;
+}
+#cat-filter-banner.active { display: flex; }
+#cat-filter-banner .cat-banner-label {
+  font-size: 12px; font-weight: 700; color: var(--blue); flex: 1;
+}
+#cat-filter-banner .cat-banner-clear {
+  font-size: 11px; color: var(--blue); cursor: pointer;
+  background: var(--blue-l); border: 1px solid #93c5fd;
+  padding: 4px 12px; border-radius: 20px; font-weight: 600;
+  transition: background .15s;
+}
+#cat-filter-banner .cat-banner-clear:hover { background: #bfdbfe; }
 
 /* ── COMPARISON TABLE ───────────────────────────────────── */
 .cmp-table { width: 100%; border-collapse: collapse; }
@@ -642,6 +673,12 @@ tr:hover td { background: #f8faff; }
     <div><div class="topbar-title">Temsilci Performansı</div></div>
   </div>
   <div style="padding:0">
+    <!-- Kategori filtresi aktif banner -->
+    <div id="cat-filter-banner">
+      <span style="font-size:16px">🔍</span>
+      <span class="cat-banner-label" id="cat-banner-text">Kategori filtresi aktif</span>
+      <span class="cat-banner-clear" onclick="clearCatFilter()">✕ Filtreyi Temizle</span>
+    </div>
     <!-- KPI kartları: 4 sütun yatay -->
     <div id="rep-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px"></div>
     <!-- Satır 1: Hedef vs Gerçekleşen + Kategori Dağılımı -->
@@ -649,7 +686,7 @@ tr:hover td { background: #f8faff; }
       <div class="card">
         <div class="card-header">
           <span class="card-title">Hedef vs Gerçekleşen</span>
-          <span class="card-sub">%80 çizgisi = kırmızı</span>
+          <span class="card-sub">%100 = yıllık hedef</span>
         </div>
         <div class="card-body" id="rep-bullet"></div>
       </div>
@@ -663,34 +700,7 @@ tr:hover td { background: #f8faff; }
         </div>
       </div>
     </div>
-    <!-- Satır 2: Detay metrikleri tablosu -->
-    <div style="margin-bottom:16px">
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">Temsilci Detay Metrikleri</span>
-          <span class="card-sub">Ort. Sipariş · Q3 · Hareket Sayısı · Müşteri Sayısı · En Büyük Satış</span>
-        </div>
-        <div class="card-body-0">
-          <div class="tbl-wrap">
-            <table class="cmp-table">
-              <thead>
-                <tr>
-                  <th>Temsilci</th>
-                  <th style="text-align:right">Ort. Sipariş €</th>
-                  <th style="text-align:right">Q3 Toplamı €</th>
-                  <th style="text-align:center">Hareket</th>
-                  <th style="text-align:center">Müşteri</th>
-                  <th style="text-align:right">En Büyük Satış €</th>
-                  <th style="text-align:right">En Aktif Ay</th>
-                </tr>
-              </thead>
-              <tbody id="rep-detail-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-    <!-- Satır 3: Aylık Trend tam genişlik -->
+    <!-- Satır 2: Aylık Trend tam genişlik (üste taşındı) -->
     <div style="margin-bottom:16px">
       <div class="card">
         <div class="card-header">
@@ -701,6 +711,16 @@ tr:hover td { background: #f8faff; }
         <div class="card-body">
           <div class="ch-wrap" style="height:260px"><canvas id="chRepLine"></canvas></div>
         </div>
+      </div>
+    </div>
+    <!-- Satır 3: Temsilci KPI kartları (6 adet, 2×3) -->
+    <div style="margin-bottom:16px">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Temsilci KPI Detayları</span>
+          <span class="card-sub" id="rep-detail-sub">Gerçekleşen · Hedef · Pipeline</span>
+        </div>
+        <div class="card-body" id="rep-detail-kpis" style="padding:0 20px 20px"></div>
       </div>
     </div>
   </div>
@@ -1805,42 +1825,194 @@ function _updateRepKpisAndTrend(){
       scales:SCALE_STYLE
     }
   });
+
+  // Detay KPI kartlarını da güncelle
+  renderRepDetailKpis('ALL');
+}
+
+// ── Kategori filtre banner yardımcıları ──────────────────────
+function _updateCatBanner(){
+  const banner = document.getElementById('cat-filter-banner');
+  const label  = document.getElementById('cat-banner-text');
+  if(!banner) return;
+  if(_activeCat==='ALL'){
+    banner.classList.remove('active');
+  } else {
+    banner.classList.add('active');
+    if(label) label.textContent = '🔍 "'+_activeCat+'" kategorisi filtreleniyor';
+  }
+}
+
+function clearCatFilter(){
+  _activeCat = 'ALL';
+  _updateCatBanner();
+  // Kategori grafiğini de güncelle
+  const catChart = Chart.getChart('chRepCat');
+  if(catChart){
+    // _catChartDatasets bu scope'da yok; renderTemsilci içindeki closure'ı tetiklemek için
+    // tüm temsilci sayfasını yenile (kategori grafiğini koruyarak)
+    _updateRepKpisAndTrend();
+    // Grafik dataseti rengini sıfırla — chart.data.datasets'e erişmek için grafik datasını yenile
+    const allReps = typeof REPS_ORDER !== 'undefined' ? REPS_ORDER : [];
+    if(catChart.data && catChart.data.datasets){
+      catChart.data.datasets.forEach((ds,i)=>{
+        if(typeof PAL !== 'undefined'){
+          ds.backgroundColor = PAL[i]+'dd';
+          ds.borderColor     = PAL[i];
+          ds.borderWidth     = 0;
+        }
+      });
+      catChart.update('none');
+    }
+    const sub = document.getElementById('rep-cat-sub');
+    if(sub) sub.textContent = 'Tümü · Etiketlere tıklayarak filtreleyin';
+  }
+}
+
+// ── Temsilci Detay KPI Kartları (6 adet, 2×3) ────────────────
+function renderRepDetailKpis(rep){
+  const el = document.getElementById('rep-detail-kpis');
+  if(!el) return;
+
+  // Tarih filtresi mevcut değilse tüm veri
+  const recs    = rep==='ALL' ? salesData : salesData.filter(r=>r.rep===rep);
+  const pots    = rep==='ALL' ? potData   : potData.filter(p=>p.rep===rep);
+
+  // 1. Gerçekleşen Satış
+  const gerceklesen = recs.reduce((s,r)=>s+r.tutar, 0);
+
+  // 2. Hedef Gerçekleşme Oranı
+  const yillikHedef = rep==='ALL' ? getTotalYearTarget() : getRepYearTarget(rep);
+  let hedefOrani = null;
+  if(yillikHedef>0) hedefOrani = Math.round(gerceklesen/yillikHedef*100);
+
+  // 3. Yeni Müşteri Satışı — Y. ile başlayan kategoriler = yeni müşteri
+  const yeniMusteriSatis = recs
+    .filter(r=>{ const cat=getCat(r.satis_elemani); return cat.startsWith('Y.'); })
+    .reduce((s,r)=>s+r.tutar, 0);
+
+  // 4. Teklif Kazanma Oranı — sadece sonuçlanmış teklifler
+  const kazanilan = pots.filter(p=>p.asama==='Kapandı' && p.olasilik===100).length;
+  const kaybedilen= pots.filter(p=>p.asama==='Kayıp').length;
+  const toplam    = kazanilan + kaybedilen;
+  const kazanmaOrani = toplam>0 ? Math.round(kazanilan/toplam*100) : null;
+
+  // 5. Açık Pipeline — kazanılmamış + kaybedilmemiş aktif fırsatlar
+  const acikPipeline = pots
+    .filter(p=>p.asama!=='Kayıp' && p.asama!=='Kapandı')
+    .reduce((s,p)=>s+p.tutar, 0);
+  const acikCount = pots.filter(p=>p.asama!=='Kayıp' && p.asama!=='Kapandı').length;
+
+  // 6. Ağırlıklı Pipeline
+  const agirlikliPipeline = pots
+    .filter(p=>p.asama!=='Kayıp' && p.asama!=='Kapandı')
+    .reduce((s,p)=>s + p.tutar*(p.olasilik||0)/100, 0);
+
+  // Kart verisi
+  const repLabel = rep==='ALL' ? 'Tüm Ekip' : (REPS[rep]?.label||rep);
+  const repCol   = rep==='ALL' ? 'var(--blue)' : (REPS[rep]?.color||'var(--blue)');
+
+  // Hedef rengi
+  const hCol = hedefOrani===null ? 'var(--gray)'
+             : hedefOrani>=100 ? 'var(--green)'
+             : hedefOrani>=70  ? 'var(--orange)'
+             : 'var(--red)';
+
+  // Kazanma oranı rengi
+  const kCol = kazanmaOrani===null ? 'var(--gray)'
+             : kazanmaOrani>=60 ? 'var(--green)'
+             : kazanmaOrani>=40 ? 'var(--orange)'
+             : 'var(--red)';
+
+  const kpiData = [
+    {
+      icon:'💰', title:'Gerçekleşen Satış',
+      value: fmt(gerceklesen),
+      sub:   recs.length+' satış hareketi',
+      col:   repCol,
+      bg:    'var(--blue-l)'
+    },
+    {
+      icon:'🎯', title:'Hedef Gerçekleşme',
+      value: hedefOrani!==null ? hedefOrani+'%' : 'Hedef tanımlanmamış',
+      sub:   yillikHedef>0 ? 'Hedef: '+fmt(yillikHedef) : 'Hedef verisi yok',
+      col:   hCol,
+      bg:    hedefOrani===null ? 'var(--gray-l)' : hedefOrani>=100 ? 'var(--green-l)' : hedefOrani>=70 ? 'var(--orange-l)' : 'var(--red-l)',
+      bar:   hedefOrani!==null ? Math.min(100, hedefOrani) : null,
+      barCol:hCol
+    },
+    {
+      icon:'🆕', title:'Yeni Müşteri Satışı',
+      value: fmt(yeniMusteriSatis),
+      sub:   recs.filter(r=>getCat(r.satis_elemani).startsWith('Y.')).length+' hareket (Y. kategorileri)',
+      col:   'var(--purple)',
+      bg:    'var(--purple-l)'
+    },
+    {
+      icon:'📊', title:'Teklif Kazanma Oranı',
+      value: kazanmaOrani!==null ? kazanmaOrani+'%' : 'Veri yok',
+      sub:   toplam>0 ? kazanilan+' kazandı / '+kaybedilen+' kaybetti' : 'Sonuçlanmış teklif yok',
+      col:   kCol,
+      bg:    kazanmaOrani===null ? 'var(--gray-l)' : kazanmaOrani>=60 ? 'var(--green-l)' : kazanmaOrani>=40 ? 'var(--orange-l)' : 'var(--red-l)'
+    },
+    {
+      icon:'🔮', title:'Açık Pipeline',
+      value: fmt(acikPipeline),
+      sub:   acikCount+' aktif fırsat',
+      col:   'var(--orange)',
+      bg:    'var(--orange-l)'
+    },
+    {
+      icon:'⚖️', title:'Ağırlıklı Pipeline',
+      value: fmt(Math.round(agirlikliPipeline)),
+      sub:   'Σ(tutar × olasılık/100)',
+      col:   'var(--green)',
+      bg:    'var(--green-l)'
+    }
+  ];
+
+  el.innerHTML = `
+    <div style="padding:4px 0 8px;font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.5px">
+      ${repLabel}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      ${kpiData.map(k=>`
+        <div style="background:var(--surface2);border-radius:10px;padding:16px 18px;border:1px solid var(--border);min-width:0;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <span style="font-size:18px;line-height:1">${k.icon}</span>
+            <span style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${k.title}</span>
+          </div>
+          <div style="font-size:22px;font-weight:800;color:${k.col};margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${k.value}</div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:${k.bar!=null?'8px':'0'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${k.sub}</div>
+          ${k.bar!=null?`
+            <div style="background:var(--border);border-radius:4px;height:4px">
+              <div style="width:${k.bar}%;background:${k.barCol};height:4px;border-radius:4px;transition:width .6s"></div>
+            </div>
+          `:''}
+        </div>
+      `).join('')}
+    </div>`;
+
+  // Kart başlığını güncelle
+  const sub = document.getElementById('rep-detail-sub');
+  if(sub) sub.textContent = repLabel+' · Gerçekleşen · Hedef · Pipeline';
 }
 
 function renderTemsilci(){
   const months9=['01','02','03','04','05','06','07','08','09'];
   _activeCat='ALL'; _activeRep='ALL';
 
-  // Detay metrikleri tablosu — her zaman tam veri
-  document.getElementById('rep-detail-tbody').innerHTML = REPS_ORDER.map(rep=>{
-    const recs    = salesData.filter(r=>r.rep===rep);
-    const tot     = recs.reduce((s,r)=>s+r.tutar,0);
-    const avgDeal = recs.length>0 ? tot/recs.length : 0;
-    const q3      = recs.filter(r=>r.tarih&&['2026-07','2026-08','2026-09'].some(px=>r.tarih.startsWith(px))).reduce((s,r)=>s+r.tutar,0);
-    const custCnt = new Set(recs.map(r=>r.cari)).size;
-    const maxSale = recs.length>0 ? Math.max(...recs.map(r=>r.tutar)) : 0;
-    // En aktif ay
-    const mt = mTotals(recs);
-    const bestM = Object.entries(mt).sort((a,b)=>b[1]-a[1])[0];
-    const bestMLabel = bestM ? MONTHS[parseInt(bestM[0])] : '—';
-    const col = REPS[rep].color;
-    return `<tr>
-      <td><span class="rep-badge rb-${REPS[rep].cls}">${REPS[rep].label}</span></td>
-      <td style="text-align:right" class="td-num">${fmt(avgDeal)}</td>
-      <td style="text-align:right" class="td-num">${fmt(q3)}</td>
-      <td style="text-align:center" class="td-dim">${recs.length}</td>
-      <td style="text-align:center" class="td-dim">${custCnt}</td>
-      <td style="text-align:right" class="td-dim">${fmt(maxSale)}</td>
-      <td style="text-align:right"><span style="font-size:11px;font-weight:600;color:${col}">${bestMLabel}</span></td>
-    </tr>`;
-  }).join('');
+  // 6 KPI kartını renderle
+  renderRepDetailKpis('ALL');
 
   // Bullet chart — her zaman tam veri
   document.getElementById('rep-bullet').innerHTML = REPS_ORDER.map(rep=>{
-    const tot = salesData.filter(r=>r.rep===rep).reduce((s,r)=>s+r.tutar,0);
-    const yH  = getRepYearTarget(rep);
-    const p   = yH>0 ? Math.min(110,Math.round(tot/yH*100)) : 0;
-    const col = REPS[rep].color;
+    const tot  = salesData.filter(r=>r.rep===rep).reduce((s,r)=>s+r.tutar,0);
+    const yH   = getRepYearTarget(rep);
+    const realP = yH>0 ? Math.round(tot/yH*100) : 0;
+    const barW  = yH>0 ? Math.min(100,realP) : 0;
+    const col  = REPS[rep].color;
+    const over = yH>0 && realP>100;
     return `<div class="bullet-row">
       <div class="bullet-header">
         <span class="bullet-name" style="color:${col}">${REPS[rep].label}</span>
@@ -1848,12 +2020,15 @@ function renderTemsilci(){
       </div>
       ${yH>0?`
         <div class="bullet-track">
-          <div class="bullet-fill" style="width:${Math.min(100,p)}%;background:${col}"></div>
-          <div class="bullet-target" style="left:80%"></div>
+          <div class="bullet-fill" style="width:${barW}%;background:${col}"></div>
+          <div class="bullet-target" style="left:100%">
+            <div class="bullet-target-label">%100</div>
+          </div>
+          ${over?`<div class="bullet-overflow">+%${realP-100} aşıldı ✓</div>`:''}
         </div>
         <div class="bullet-meta">
-          <span style="color:${col}">%${p} tamamlandı</span>
-          <span style="color:var(--red)">%80 hedef çizgisi</span>
+          <span style="color:${over?'var(--green)':col}">${over?'🎯':''} %${realP} tamamlandı</span>
+          <span style="color:var(--text3)">Yıllık hedef: ${fmt(yH)}</span>
         </div>
       `:`<div class="bullet-track"><div class="bullet-fill" style="width:100%;background:${col}40"></div></div>
         <div class="bullet-meta"><span>Hedef girilmedi</span></div>`}
@@ -1931,7 +2106,16 @@ function renderTemsilci(){
             if(sub) sub.textContent = _activeCat==='ALL'
               ? 'Tümü · Etiketlere tıklayarak filtreleyin'
               : _activeCat+' seçili · Tekrar tıklayın → Tümü';
+            // Banner güncelle
+            _updateCatBanner();
             _updateRepKpisAndTrend();
+            // Kategori seçilince trend grafiğini göster
+            if(_activeCat!=='ALL'){
+              setTimeout(()=>{
+                const trendCard = document.getElementById('chRepLine')?.closest('.card');
+                if(trendCard) trendCard.scrollIntoView({behavior:'smooth', block:'nearest'});
+              }, 200);
+            }
           }
         },
         tooltip:{...TOOLTIP_STYLE, mode:'index', intersect:false}
