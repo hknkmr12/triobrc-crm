@@ -1414,7 +1414,7 @@ function toggleLabels(chartId, btn){
   btn.classList.toggle('on');
   _eyeState[chartId] = btn.classList.contains('on');
   const c = Chart.getChart(chartId);
-  if(c) c.update();
+  if(c) c.update('none');
 }
 
 // afterDatasetsDraw - safe label painter
@@ -1423,11 +1423,11 @@ function paintLabels(chart){
   if(!_eyeState[id]) return;
   const skip = ['doughnut','pie','radar'];
   if(skip.includes(chart.config.type)) return;
+  const isHoriz = chart.config.options?.indexAxis === 'y';
   const ctx = chart.ctx;
   ctx.save();
   ctx.font = '600 10px Arial,sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
+  ctx.textBaseline = 'middle';
   try{
     chart.data.datasets.forEach((ds,di)=>{
       const meta = chart.getDatasetMeta(di);
@@ -1437,15 +1437,28 @@ function paintLabels(chart){
         const v = ds.data[i];
         if(!v||v<=0) return;
         const lbl = v>=1000 ? '€'+Math.round(v/1000)+'K' : '€'+Math.round(v);
-        const x=el.x, y=el.y-4;
-        const w = ctx.measureText(lbl).width+8;
-        ctx.fillStyle='rgba(255,255,255,0.9)';
-        ctx.fillRect(x-w/2, y-13, w, 13);
-        ctx.strokeStyle='rgba(0,0,0,0.06)';
-        ctx.lineWidth=0.5;
-        ctx.strokeRect(x-w/2, y-13, w, 13);
+        let x, y;
+        if(isHoriz){
+          // Yatay bar: etiket çubuğun sağ ucuna yapışık
+          x = el.x + 4;
+          y = el.y;
+          ctx.textAlign = 'left';
+        } else {
+          x = el.x;
+          y = el.y - 10;
+          ctx.textAlign = 'center';
+        }
+        const w = ctx.measureText(lbl).width + 6;
+        const h = 13;
+        if(!isHoriz){
+          ctx.fillStyle='rgba(255,255,255,0.9)';
+          ctx.fillRect(x-w/2, y-h/2, w, h);
+          ctx.strokeStyle='rgba(0,0,0,0.06)';
+          ctx.lineWidth=0.5;
+          ctx.strokeRect(x-w/2, y-h/2, w, h);
+        }
         ctx.fillStyle='#0f1623';
-        ctx.fillText(lbl, x, y-1);
+        ctx.fillText(lbl, x, y);
       });
     });
   }catch(e){}
@@ -1580,7 +1593,7 @@ function renderGenel(){
     options:{
       indexAxis:'y',
       responsive:true, maintainAspectRatio:false,
-      animation:{duration:600,easing:'easeOutQuart'},
+      animation:{duration:600,easing:'easeOutQuart',onComplete(e){paintLabels(e.chart);}},
       plugins:{
         legend:{display:false},
         tooltip:{...TOOLTIP_STYLE, callbacks:{label:ctx=>fmt(ctx.parsed.x)}}
@@ -1604,33 +1617,33 @@ function renderGenel(){
     const yHg      = repSel==='ALL' ? getTotalYearTarget() : getRepYearTarget(repSel);
     const actPct   = yHg>0 ? (total/yHg*100) : null;
     const dispPct  = actPct!==null ? Math.round(actPct) : null;
-    const gaugeCol = actPct===null ? '#94a3b8' : actPct>=100 ? C.green : actPct>=70 ? C.orange : '#e03535';
-    const R=54, stroke=12, cx=70, cy=70;
-    const circ     = 2*Math.PI*R;   // tam çevre
-    const filled   = actPct!==null ? Math.min(actPct/100, 1)*circ : 0;
-    // Başlangıç noktası üst (saat 12) = offset ile ayarla: circ * 0.25
-    const offset   = circ * 0.25;
+    const gaugeCol = actPct===null ? '#94a3b8' : actPct>=100 ? C.green : actPct>=70 ? C.orange : C.blue;
+    const R=54, stroke=13, cx=70, cy=70;
+    const circ   = 2*Math.PI*R;
+    const filled = actPct!==null ? Math.min(actPct/100, 1)*circ : 0;
+    // saat 12'den başlat: dashoffset = circ*0.25 (sağa döner)
+    const offset = circ * 0.25;
     gaugeEl.innerHTML = `
       <svg width="140" height="140" viewBox="0 0 140 140">
-        <!-- Track -->
+        <!-- Gri track (tamamlanmayan kısım) -->
         <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
           stroke="#e4e8f2" stroke-width="${stroke}"/>
-        <!-- Fill -->
+        <!-- Renkli dolgu (tamamlanan kısım) -->
         <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
           stroke="${gaugeCol}" stroke-width="${stroke}" stroke-linecap="round"
           stroke-dasharray="${filled.toFixed(2)} ${circ.toFixed(2)}"
           stroke-dashoffset="${offset.toFixed(2)}"
           style="transition:stroke-dasharray .9s ease"/>
-        <!-- Merkez yüzde -->
-        <text x="${cx}" y="${cy-7}" text-anchor="middle"
-          font-family="Inter,sans-serif" font-size="24" font-weight="800" fill="${gaugeCol}">${dispPct!==null?dispPct+'%':'—'}</text>
-        <text x="${cx}" y="${cy+11}" text-anchor="middle"
-          font-family="Inter,sans-serif" font-size="9" letter-spacing="1" fill="#94a3b8">ULAŞILDI</text>
+        <!-- Yüzde — siyah -->
+        <text x="${cx}" y="${cy-5}" text-anchor="middle"
+          font-family="Inter,sans-serif" font-size="26" font-weight="800" fill="#0f1623">${dispPct!==null?dispPct+'%':'—'}</text>
+        <text x="${cx}" y="${cy+13}" text-anchor="middle"
+          font-family="Inter,sans-serif" font-size="9" letter-spacing="1.2" fill="#94a3b8">ULAŞILDI</text>
       </svg>
-      <div style="text-align:center;margin-top:12px;line-height:1.7">
-        <div style="font-size:15px;font-weight:800;color:var(--text)">${fmt(total)}</div>
-        <div style="font-size:11px;color:var(--text3)">${yHg>0?'Hedef: <strong style="color:var(--text2)">'+fmt(yHg)+'</strong>':'Hedef girilmedi'}</div>
-        ${yHg>0&&total<yHg?`<div style="font-size:11px;color:#e03535;margin-top:2px">Kalan: <strong>${fmt(yHg-total)}</strong></div>`:''}
+      <div style="text-align:center;margin-top:10px;line-height:1.8">
+        <div style="font-size:14px;font-weight:800;color:var(--text)">${fmt(total)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">${yHg>0?'Hedef: <strong style="color:var(--text2)">'+fmt(yHg)+'</strong>':'Hedef girilmedi'}</div>
+        ${yHg>0&&total<yHg?`<div style="font-size:11px;color:${C.red};margin-top:2px">Kalan: <strong>${fmt(yHg-total)}</strong></div>`:''}
         ${yHg>0&&total>=yHg?`<div style="font-size:11px;color:${C.green};font-weight:700;margin-top:2px">✓ Hedef aşıldı!</div>`:''}
       </div>`;
   }
