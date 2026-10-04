@@ -180,12 +180,12 @@ body {
 
 /* ── REP TABS ───────────────────────────────────────────── */
 .rep-tabs {
-  display: flex; border-bottom: 2px solid var(--border);
-  margin-bottom: 20px; overflow-x: auto;
+  display: flex; border-bottom: none;
+  margin-bottom: 0; overflow-x: visible;
 }
 .rep-tab {
   padding: 9px 18px; cursor: pointer;
-  font-size: 12px; font-weight: 600; color: var(--text3);
+  font-size: 13px; font-weight: 600; color: var(--text3);
   border-bottom: 2px solid transparent; margin-bottom: -2px;
   transition: all .15s; white-space: nowrap;
   display: flex; align-items: center; gap: 7px;
@@ -909,8 +909,8 @@ tr:hover td { background: #f8faff; }
   </div>
   <div style="padding:0">
     <!-- Rep tabs + Dönem tabs aynı satırda -->
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--border)">
-    <div class="rep-tabs" id="pipe-tabs" style="margin-top:0;flex:1;min-width:0;border-bottom:none;overflow-x:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:2px solid var(--border)">
+    <div class="rep-tabs" id="pipe-tabs" style="margin-top:0;flex:1;min-width:0">
       <div class="rep-tab active all" onclick="switchPipeRep('ALL',this)"><span class="tab-dot dot-all"></span>Tüm Ekip</div>
       <div class="rep-tab gk" onclick="switchPipeRep('GOKHAN_KAYA',this)"><span class="tab-dot dot-gk"></span>Gökhan Kaya</div>
       <div class="rep-tab hk" onclick="switchPipeRep('HAKAN_KEMER',this)"><span class="tab-dot dot-hk"></span>Hakan Kemer</div>
