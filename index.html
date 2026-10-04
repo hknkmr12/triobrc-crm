@@ -909,15 +909,15 @@ tr:hover td { background: #f8faff; }
   </div>
   <div style="padding:0">
     <!-- Rep tabs + Dönem tabs aynı satırda -->
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap">
-    <div class="rep-tabs" id="pipe-tabs" style="margin-top:0;flex:1;min-width:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--border)">
+    <div class="rep-tabs" id="pipe-tabs" style="margin-top:0;flex:1;min-width:0;border-bottom:none;overflow-x:auto">
       <div class="rep-tab active all" onclick="switchPipeRep('ALL',this)"><span class="tab-dot dot-all"></span>Tüm Ekip</div>
       <div class="rep-tab gk" onclick="switchPipeRep('GOKHAN_KAYA',this)"><span class="tab-dot dot-gk"></span>Gökhan Kaya</div>
       <div class="rep-tab hk" onclick="switchPipeRep('HAKAN_KEMER',this)"><span class="tab-dot dot-hk"></span>Hakan Kemer</div>
       <div class="rep-tab ha" onclick="switchPipeRep('HOUSE_ACCOUNT',this)"><span class="tab-dot dot-ha"></span>House Account</div>
       <div class="rep-tab kd" onclick="switchPipeRep('KUTSİ_DEVECİ',this)"><span class="tab-dot dot-kd"></span>Kutsi Deveci</div>
     </div>
-    <div id="pipe-ceyrek-tabs" style="display:flex;gap:4px;padding:0 16px;flex-shrink:0">
+    <div id="pipe-ceyrek-tabs" style="display:flex;gap:4px;padding:0 12px 0 0;flex-shrink:0;align-items:center">
       <button class="pipe-cq-tab" onclick="switchPipeCeyrek('',this)" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);cursor:pointer;background:transparent;color:var(--text2);font-family:inherit">Tümü</button>
       <button class="pipe-cq-tab" onclick="switchPipeCeyrek('Q3 2026',this)" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);cursor:pointer;background:transparent;color:var(--text2);font-family:inherit">Q3 2026</button>
       <button class="pipe-cq-tab pipe-cq-active" onclick="switchPipeCeyrek('Q4 2026',this)" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid #334155;cursor:pointer;background:#334155;color:#fff;font-family:inherit">Q4 2026</button>
@@ -1332,7 +1332,7 @@ async function savePot(){
   lsSet(LS.POT,potData);
 }
 async function dbSavePot(pot){
-  if(!_sb||!IS_ONLINE) return;
+  if(!_sb) return;
   setSyncing(true);
   const payload = {
     rep:pot.rep, cari:pot.cari, firsat:pot.firsat, kat:pot.kat,
@@ -1349,7 +1349,7 @@ async function dbSavePot(pot){
 }
 async function dbDeletePot(pid){
   lsSet(LS.POT,potData);
-  if(!_sb||!IS_ONLINE) return;
+  if(!_sb) return;
   setSyncing(true);
   if(String(pid).includes('-')) await _sb.from('potansiyel').delete().eq('id',pid);
   setSyncing(false);
