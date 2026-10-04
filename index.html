@@ -1228,9 +1228,18 @@ async function loadAll(){
         satis_elemani:r.satis_elemani||'', aciklama:r.aciklama||''
       }));
     } else {
-      console.log('Supabase boş, RAW_DATA seed ediliyor...');
-      salesData = RAW_DATA.map((r,i)=>({...r,_id:'tmp_'+i}));
-      await seedSales(RAW_DATA);
+      // Supabase tablosu boş — seed yapmadan önce localStorage'a bak
+      const lsSalesCheck = lsGet(LS.SALES);
+      if(lsSalesCheck && lsSalesCheck.length>0){
+        // localStorage'da veri var: seed yapma, onu kullan; Supabase'e yükle
+        console.log('Supabase boş ama localStorage'da '+lsSalesCheck.length+' kayıt var, seed\'leniyor...');
+        salesData = lsSalesCheck;
+        await seedSales(salesData.map(r=>({ rep:r.rep,sira:r.sira,cari:r.cari,tarih:r.tarih,urun:r.urun,miktar:r.miktar,birim:r.birim,birim_fiyat:r.birim_fiyat,doviz:r.doviz,kur:r.kur,tutar:r.tutar,satis_elemani:r.satis_elemani,aciklama:r.aciklama })));
+      } else {
+        console.log('Supabase boş ve localStorage boş — RAW_DATA seed ediliyor...');
+        salesData = RAW_DATA.map((r,i)=>({...r,_id:'tmp_'+i}));
+        await seedSales(RAW_DATA);
+      }
     }
     const { data:hedRow, error:e2 } = await _sb.from('hedefler').select('*').eq('key','targets_v4').single();
     if(!e2 && hedRow) targets = hedRow.value;
@@ -1272,9 +1281,14 @@ async function seedSales(rawRows){
     kur:r.kur||1, tutar:r.tutar||0,
     satis_elemani:r.satis_elemani||'', aciklama:r.aciklama||''
   }));
+  // Insert in batches, get returned IDs to update salesData
   for(let i=0;i<rows.length;i+=100){
-    await _sb.from('satis_hareketleri').insert(rows.slice(i,i+100));
+    const {data,error} = await _sb.from('satis_hareketleri').insert(rows.slice(i,i+100)).select('id,sira');
+    if(!error && data){
+      data.forEach(d=>{ const found=salesData.find(r=>r.sira===d.sira); if(found) found._id=d.id; });
+    }
   }
+  lsSet(LS.SALES,salesData);
   console.log('Seed tamamlandı:', rows.length,'kayıt');
 }
 
@@ -1283,7 +1297,7 @@ async function save(){
   lsSet(LS.SALES,salesData);
 }
 async function dbSaveRow(row){
-  if(!_sb||!IS_ONLINE) return;
+  if(!_sb) return;
   setSyncing(true);
   try{
     const payload = {
@@ -1309,14 +1323,14 @@ async function dbSaveRow(row){
 }
 async function dbDeleteRow(id){
   lsSet(LS.SALES,salesData);
-  if(!_sb||!IS_ONLINE) return;
+  if(!_sb) return;
   setSyncing(true);
   if(String(id).includes('-')) await _sb.from('satis_hareketleri').delete().eq('id',id);
   setSyncing(false);
 }
 async function saveTargets(){
   lsSet(LS.TARGETS,targets);
-  if(!_sb||!IS_ONLINE){ showToast('✓ Hedefler yerel kaydedildi','s'); return; }
+  if(!_sb){ showToast('✓ Hedefler yerel kaydedildi','s'); return; }
   setSyncing(true);
   try{
     const {error} = await _sb.from('hedefler').upsert(
