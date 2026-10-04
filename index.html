@@ -1357,7 +1357,8 @@ async function dbSavePot(pot){
   const payload = {
     rep:pot.rep, cari:pot.cari, firsat:pot.firsat, kat:pot.kat,
     ceyrek:pot.ceyrek, asama:pot.asama, tutar:pot.tutar,
-    olasilik:pot.olasilik, not_text:pot.not||'', satis_ay:pot.satis_ay||null
+    olasilik:pot.olasilik, not_text:pot.not||''
+    // satis_ay: Supabase potansiyel tablosuna bu kolon eklenince buraya ekleyin
   };
   console.log('dbSavePot payload:', JSON.stringify(payload), '_pid:', pot._pid);
   if(pot._pid && String(pot._pid).includes('-')){
