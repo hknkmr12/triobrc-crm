@@ -655,15 +655,15 @@ tr:hover td { background: #f8faff; }
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
       <div class="card">
         <div class="card-header">
-          <span class="card-title">Aylık Satış Trendi</span>
-          <div style="display:flex;align-items:center;gap:6px">
-            <div id="trend-view-btns" style="display:flex;gap:4px">
-              <button onclick="window._TREND_VIEW='ay';renderGenel()" id="tvb-ay"
-                style="font-size:10px;padding:2px 9px;border-radius:20px;border:1px solid;cursor:pointer;background:#334155;color:#fff;border-color:#334155">Aylık</button>
-              <button onclick="window._TREND_VIEW='ceyrek';renderGenel()" id="tvb-ceyrek"
-                style="font-size:10px;padding:2px 9px;border-radius:20px;border:1px solid;cursor:pointer;background:transparent;color:#64748b;border-color:#cbd5e1">Çeyrek</button>
-            </div>
-            <button class="ch-eye" onclick="toggleLabels('chMonthly',this)">👁</button>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="card-title">Aylık Satış Trendi</span>
+            <button class="ch-eye" onclick="toggleLabels('chMonthly',this)" style="margin-left:2px">👁</button>
+          </div>
+          <div id="trend-view-btns" style="display:flex;gap:4px">
+            <button onclick="window._TREND_VIEW='ay';renderGenel()" id="tvb-ay"
+              style="font-size:10px;padding:2px 9px;border-radius:20px;border:1px solid;cursor:pointer;background:#334155;color:#fff;border-color:#334155">Aylık</button>
+            <button onclick="window._TREND_VIEW='ceyrek';renderGenel()" id="tvb-ceyrek"
+              style="font-size:10px;padding:2px 9px;border-radius:20px;border:1px solid;cursor:pointer;background:transparent;color:#64748b;border-color:#cbd5e1">Çeyrek</button>
           </div>
         </div>
         <div class="card-body">
@@ -1563,6 +1563,8 @@ function paintLabels(chart){
     chart.data.datasets.forEach((ds,di)=>{
       const meta = chart.getDatasetMeta(di);
       if(!meta||meta.hidden) return;
+      // Hedef/line dataset'lerini etiket dışında bırak — sadece bar'lar etiket alır
+      if(meta.type==='line'||ds.type==='line') return;
       meta.data.forEach((el,i)=>{
         if(!el) return;
         const v = ds.data[i];
