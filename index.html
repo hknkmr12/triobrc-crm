@@ -1981,7 +1981,7 @@ function _updateCatBanner(){
 
 function clearCatFilter(){
   _activeCat = 'ALL';
-  _updateCatBanner();
+  // _updateCatBanner(); — banner kullanılmıyor
   // Kategori grafiğini de güncelle
   const catChart = Chart.getChart('chRepCat');
   if(catChart){
@@ -2212,8 +2212,8 @@ function renderTemsilci(){
             if(sub) sub.textContent = _activeCat==='ALL'
               ? 'Tümü · Etiketlere tıklayarak filtreleyin'
               : _activeCat+' seçili · Tekrar tıklayın → Tümü';
-            // Banner güncelle
-            _updateCatBanner();
+            // Banner güncelle — devre dışı (legend etiketiyle zaten görünür)
+            // _updateCatBanner();
             _updateRepKpisAndTrend();
             // Kategori seçilince trend grafiğini göster
             if(_activeCat!=='ALL'){
