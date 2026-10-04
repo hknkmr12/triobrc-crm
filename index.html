@@ -3132,45 +3132,74 @@ function renderPipeline(){
     if(ceyrek&&p.ceyrek!==ceyrek) return false;
     return true;
   });
-  const actives=basePot.filter(p=>p.asama!=='Kayıp'&&p.asama!=='Kapandı');
-  const totalTah=actives.reduce((s,p)=>s+p.tutar,0);
-  // Ağırlıklı değer = %75 ve üzeri olasılıklı tekliflerin TAM tutarı (çarpma yok)
-  const highProb=actives.filter(p=>p.olasilik>=75);
+  // Kayıp hariç aktif fırsatlar (Kapandı dahil — pipeline gösterimi için)
+  const actives=basePot.filter(p=>p.asama!=='Kayıp');
+  const openActives=basePot.filter(p=>p.asama!=='Kayıp'&&p.asama!=='Kapandı');
+  const totalTah=actives.filter(p=>p.asama!=='Kapandı').reduce((s,p)=>s+p.tutar,0); // toplam pipeline = kapandı hariç aktifler
+  // Yüksek olasılıklı = ≥%75 VEYA Kapandı VEYA %100
+  const highProb=actives.filter(p=>p.olasilik>=75||p.asama==='Kapandı'||p.olasilik===100);
   const totalAg=highProb.reduce((s,p)=>s+p.tutar,0);
-  const sicak=actives.filter(p=>p.asama==='Sıcak'||p.asama==='Kapandı').reduce((s,p)=>s+p.tutar,0);
+  // Satışa dönmesi beklenen = Sıcak + yüksek olasılıklı açık fırsatlar
+  const beklenen=actives.filter(p=>(p.asama==='Sıcak'||p.olasilik>=75||p.olasilik===100)&&p.asama!=='Kapandı');
+  const totalBeklenen=beklenen.reduce((s,p)=>s+p.tutar,0);
 
   document.getElementById('pipe-kpis').innerHTML=[
-    {label:'Toplam Pipeline',val:fmt(totalTah),sub:actives.length+' açık fırsat',color:'kc-orange'},
-    {label:'Yüksek Olasılıklı (≥%75)',val:fmt(totalAg),sub:highProb.length+' teklif · tam tutar',color:'kc-green'},
-    {label:'Sıcak Fırsatlar',val:fmt(sicak),sub:actives.filter(p=>p.asama==='Sıcak').length+' fırsat',color:'kc-blue'},
-    {label:'Açık Fırsat',val:actives.length+' adet',sub:'Kayıp hariç',color:'kc-gray'},
+    {label:'Toplam Pipeline',val:fmt(totalTah),sub:openActives.length+' açık fırsat · Kayıp hariç',color:'kc-orange'},
+    {label:'Yüksek Olasılıklı',val:fmt(totalAg),sub:'≥%75 + Kapandı + %100 · '+highProb.length+' fırsat',color:'kc-green'},
+    {label:'Açık Fırsat',val:openActives.length+' adet',sub:'Kayıp ve Kapandı hariç',color:'kc-gray'},
+    {label:'Satışa Dönmesi Beklenen',val:fmt(totalBeklenen),sub:'Sıcak + yüksek olasılıklı',color:'kc-blue'},
   ].map((k,i)=>`<div class="kpi-card ${k.color}" style="animation-delay:${i*.04}s">
     <div class="kpi-label">${k.label}</div>
     <div class="kpi-value">${k.val}</div>
     <div class="kpi-sub">${k.sub}</div>
   </div>`).join('');
 
-  // Müşteri bazında yatay bar — aşamaya göre renkli
+  // Müşteri bazında yatay bar — Yüksek Olasılıklı / Tüm Müşteriler filtreli
   if(_chPipC){ _chPipC.destroy(); _chPipC=null; }
   if(_chPipA){ _chPipA.destroy(); _chPipA=null; }
+  // Grafik filtre state'i
+  if(typeof _pipeMustFilter==='undefined') window._pipeMustFilter='all';
   (function(){
-    const ASAMA_COLS={Teklif:C.blue,Görüşme:C.orange,Sıcak:'#22c55e',Kapandı:'#16a34a',Kayıp:C.red};
-    const ASAMALAR=['Sıcak','Teklif','Görüşme','Kapandı','Kayıp'];
-    // Müşteri toplamları
+    const ASAMA_COLS={Teklif:C.blue,Görüşme:C.orange,Sıcak:'#22c55e',Kapandı:'#16a34a'};
+    const ASAMALAR=['Sıcak','Teklif','Görüşme','Kapandı'];
+    // Kayıp hariç filtrele; etiket filtresine göre daralt
+    const srcData = basePot.filter(p=>p.asama!=='Kayıp');
+    const filtered = _pipeMustFilter==='high'
+      ? srcData.filter(p=>p.olasilik>=75||p.asama==='Kapandı'||p.olasilik===100)
+      : srcData;
+    // Müşteri toplamları — her müşteri tek çubuk
     const custMap={};
-    basePot.forEach(p=>{
+    filtered.forEach(p=>{
       if(!custMap[p.cari]) custMap[p.cari]={total:0,byAsama:{}};
       custMap[p.cari].total+=p.tutar;
       custMap[p.cari].byAsama[p.asama]=(custMap[p.cari].byAsama[p.asama]||0)+p.tutar;
     });
-    const sorted=Object.entries(custMap).sort((a,b)=>b[1].total-a[1].total).slice(0,20);
+    const sorted=Object.entries(custMap).sort((a,b)=>b[1].total-a[1].total);
     const labels=sorted.map(([n])=>n.length>22?n.slice(0,20)+'…':n);
-    const barH=28, minH=160;
+    const barH=28, minH=100;
     const canvasH=Math.max(minH, labels.length*barH+40);
     const canvas=document.getElementById('chPipeMust');
     canvas.style.height=canvasH+'px';
     canvas.style.width='100%';
     canvas.height=canvasH;
+    // Etiket butonları
+    const wrap=document.getElementById('chPipeMustWrap');
+    let btnBar=document.getElementById('pipeMustBtnBar');
+    if(!btnBar){
+      btnBar=document.createElement('div');
+      btnBar.id='pipeMustBtnBar';
+      btnBar.style.cssText='display:flex;gap:6px;padding:4px 8px 6px;flex-wrap:wrap';
+      wrap.parentElement.insertBefore(btnBar,wrap);
+    }
+    btnBar.innerHTML=[
+      {key:'all',label:'Tüm Müşteriler'},
+      {key:'high',label:'Yüksek Olasılıklı'}
+    ].map(b=>`<button onclick="window._pipeMustFilter='${b.key}';renderPipeline()"
+      style="font-size:10px;padding:3px 10px;border-radius:20px;border:1px solid;cursor:pointer;
+        background:${_pipeMustFilter===b.key?'#334155':'transparent'};
+        color:${_pipeMustFilter===b.key?'#fff':'#64748b'};
+        border-color:${_pipeMustFilter===b.key?'#334155':'#cbd5e1'}">${b.label}</button>`).join('');
+
     const datasets=ASAMALAR.map(a=>({
       label:a,
       data:sorted.map(([,v])=>Math.round(v.byAsama[a]||0)),
@@ -3185,11 +3214,11 @@ function renderPipeline(){
       options:{
         indexAxis:'y',
         responsive:true,maintainAspectRatio:false,
-        animation:{duration:600},
+        animation:{duration:400},
         interaction:{mode:'index',intersect:false},
         plugins:{
           legend:{position:'top',labels:{color:'#64748b',font:{size:10},boxWidth:10,padding:8}},
-          tooltip:{...TOOLTIP_STYLE,callbacks:{label:ctx=>' '+ctx.dataset.label+': '+fmt(ctx.parsed.x)}}
+          tooltip:{...TOOLTIP_STYLE,callbacks:{label:ctx=>ctx.parsed.x>0?' '+ctx.dataset.label+': '+fmt(ctx.parsed.x):null}}
         },
         scales:{
           x:{stacked:true,grid:{color:'#e4e8f244'},ticks:{color:'#94a3b8',font:{size:9},callback:v=>v>=1000?Math.round(v/1000)+'K':''+v}},
@@ -3201,19 +3230,21 @@ function renderPipeline(){
 
   // Pipeline gauge (sol) + Hedef gauge (sağ)
   (function(){
-    const totalPipe   = basePot.reduce((s,p)=>s+p.tutar,0);
-    const highProb    = basePot.filter(p=>p.olasilik>=75).reduce((s,p)=>s+p.tutar,0);
+    // Kayıp hariç toplam pipeline (Kapandı dahil)
+    const pipeSrc     = basePot.filter(p=>p.asama!=='Kayıp');
+    const totalPipe   = pipeSrc.filter(p=>p.asama!=='Kapandı').reduce((s,p)=>s+p.tutar,0);
+    // Yüksek olasılıklı = ≥%75 VEYA Kapandı VEYA %100
+    const highProbVal = pipeSrc.filter(p=>p.olasilik>=75||p.asama==='Kapandı'||p.olasilik===100).reduce((s,p)=>s+p.tutar,0);
     const R=52, stroke=12, cx=68, cy=68;
     const circ=2*Math.PI*R;
-    const filledGray  = circ; // tam daire = total pipeline
-    const filledGreen = totalPipe>0 ? Math.min(highProb/totalPipe,1)*circ : 0;
-    const pctGreen    = totalPipe>0 ? Math.round(highProb/totalPipe*100) : 0;
+    const filledGreen = totalPipe>0 ? Math.min(highProbVal/totalPipe,1)*circ : 0;
+    const pctGreen    = totalPipe>0 ? Math.round(highProbVal/totalPipe*100) : 0;
     document.getElementById('pipe-gauge-wrap').innerHTML=`
       <svg width="136" height="136" viewBox="0 0 136 136">
-        <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#94a3b822" stroke-width="${stroke}"/>
+        <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#94a3b833" stroke-width="${stroke}"/>
         <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
-          stroke="#94a3b866" stroke-width="${stroke}"
-          stroke-dasharray="${filledGray.toFixed(2)} 0"
+          stroke="#94a3b855" stroke-width="${stroke}"
+          stroke-dasharray="${circ.toFixed(2)} 0"
           transform="rotate(-90 ${cx} ${cy})"/>
         <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
           stroke="#4ade80" stroke-width="${stroke}" stroke-linecap="round"
@@ -3228,16 +3259,20 @@ function renderPipeline(){
       <div style="text-align:center;line-height:1.8;margin-top:4px">
         <div style="font-size:11px;font-weight:700;color:var(--text)">${fmt(totalPipe)}</div>
         <div style="font-size:10px;color:var(--text3)">Toplam Pipeline</div>
-        <div style="font-size:11px;font-weight:700;color:#22c55e;margin-top:2px">${fmt(highProb)}</div>
+        <div style="font-size:11px;font-weight:700;color:#22c55e;margin-top:2px">${fmt(highProbVal)}</div>
         <div style="font-size:10px;color:var(--text3)">Yüksek Olasılıklı</div>
       </div>`;
 
-    // Hedef gauge (sağ)
+    // Hedef gauge (sağ) — YTD satışlar + yüksek olasılıklı pipeline = yıl sonu beklenti
     const yHg = (!PIPE_REP||PIPE_REP==='ALL') ? getTotalYearTarget() : getRepYearTarget(PIPE_REP);
-    const pipeRatio = yHg>0 ? Math.min(totalPipe/yHg,1.5) : null;
-    const dispPct2  = yHg>0 ? Math.round(totalPipe/yHg*100) : null;
-    const col2 = dispPct2===null?'#94a3b8':dispPct2>=100?C.green:dispPct2>=60?C.orange:C.blue;
-    const filled2   = pipeRatio!==null ? Math.min(pipeRatio,1)*circ : 0;
+    // YTD gerçekleşen satışlar
+    const ytdSales = (!PIPE_REP||PIPE_REP==='ALL')
+      ? salesData.reduce((s,r)=>s+r.tutar,0)
+      : salesData.filter(r=>r.rep===PIPE_REP).reduce((s,r)=>s+r.tutar,0);
+    const yilSonuBeklenti = ytdSales + highProbVal;
+    const dispPct2  = yHg>0 ? Math.round(yilSonuBeklenti/yHg*100) : null;
+    const col2 = dispPct2===null?'#94a3b8':dispPct2>=100?C.green:dispPct2>=70?C.orange:C.blue;
+    const filled2   = yHg>0 ? Math.min(yilSonuBeklenti/yHg,1)*circ : 0;
     document.getElementById('pipe-hedef-wrap').innerHTML=`
       <svg width="136" height="136" viewBox="0 0 136 136">
         <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#e4e8f2" stroke-width="${stroke}"/>
@@ -3249,14 +3284,15 @@ function renderPipeline(){
         <text x="${cx}" y="${cy-4}" text-anchor="middle"
           font-family="Inter,sans-serif" font-size="22" font-weight="800" fill="#0f1623">${dispPct2!==null?dispPct2+'%':'—'}</text>
         <text x="${cx}" y="${cy+13}" text-anchor="middle"
-          font-family="Inter,sans-serif" font-size="8" letter-spacing="1" fill="#94a3b8">HEDEF KAPSAMI</text>
+          font-family="Inter,sans-serif" font-size="8" letter-spacing="1" fill="#94a3b8">YIL SONU</text>
       </svg>
       <div style="text-align:center;line-height:1.8;margin-top:4px">
-        <div style="font-size:11px;font-weight:700;color:var(--text)">${fmt(totalPipe)}</div>
-        <div style="font-size:10px;color:var(--text3)">Pipeline Değeri</div>
-        ${yHg>0?`<div style="font-size:11px;font-weight:700;color:var(--text2);margin-top:2px">${fmt(yHg)}</div>
-        <div style="font-size:10px;color:var(--text3)">Yıl Sonu Hedef</div>`:`<div style="font-size:10px;color:var(--text3);margin-top:4px">Hedef girilmedi</div>`}
-        ${yHg>0&&totalPipe<yHg?`<div style="font-size:10px;color:${C.red};margin-top:2px">Açık: ${fmt(yHg-totalPipe)}</div>`:''}
+        <div style="font-size:11px;font-weight:700;color:${col2}">${fmt(yilSonuBeklenti)}</div>
+        <div style="font-size:10px;color:var(--text3)">Beklenen Toplam</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">${fmt(ytdSales)} satış + ${fmt(highProbVal)} pipeline</div>
+        ${yHg>0?`<div style="font-size:10px;color:var(--text3);margin-top:2px">Hedef: <strong style="color:var(--text2)">${fmt(yHg)}</strong></div>`:`<div style="font-size:10px;color:var(--text3);margin-top:4px">Hedef girilmedi</div>`}
+        ${yHg>0&&yilSonuBeklenti<yHg?`<div style="font-size:10px;color:${C.red};margin-top:2px">Açık: ${fmt(yHg-yilSonuBeklenti)}</div>`:''}
+        ${yHg>0&&yilSonuBeklenti>=yHg?`<div style="font-size:10px;color:${C.green};font-weight:700;margin-top:2px">✓ Hedef kapsanıyor</div>`:''}
       </div>`;
   })();
 
