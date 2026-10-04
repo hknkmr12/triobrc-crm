@@ -105,6 +105,24 @@ body {
   border-left-color: var(--blue);
 }
 .nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+.sb-backup {
+  margin: 0 12px 8px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 11px;
+}
+.sb-backup-title { font-weight: 600; color: var(--text2); margin-bottom: 7px; font-size: 11px; }
+.sb-backup-btns { display: flex; gap: 5px; margin-bottom: 5px; }
+.sb-backup-btn {
+  flex: 1; padding: 5px 0; font-size: 10px; font-weight: 500;
+  border: 1px solid var(--border); border-radius: 5px;
+  background: var(--surface); color: var(--text2);
+  cursor: pointer; transition: background .15s;
+}
+.sb-backup-btn:hover { background: var(--blue-l); color: var(--blue); border-color: var(--blue); }
+.sb-backup-info { font-size: 10px; color: var(--text3); }
 .sb-foot {
   padding: 14px 20px;
   border-top: 1px solid var(--border);
@@ -547,7 +565,7 @@ tr:hover td { background: #f8faff; }
 }
 @media(max-width:768px){
   .sidebar { width: 56px; min-width: 56px; }
-  .sidebar .nav-item span, .sb-logo .sub, .nav-section, .sb-foot .user { display: none; }
+  .sidebar .nav-item span, .sb-logo .sub, .nav-section, .sb-foot .user, .sb-backup { display: none; }
   .nav-item { justify-content: center; padding: 11px; }
   .kpi-row { grid-template-columns: 1fr 1fr; }
 }
@@ -589,6 +607,15 @@ tr:hover td { background: #f8faff; }
       <span class="nav-icon">🔮</span><span>Pipeline</span>
     </div>
   </nav>
+  <div class="sb-backup">
+    <div class="sb-backup-title">🗄️ Veri Yedekleme</div>
+    <div class="sb-backup-btns">
+      <button class="sb-backup-btn" onclick="backupAllData()" title="Tüm verileri JSON olarak indir">⬇ Yedek Al</button>
+      <button class="sb-backup-btn" onclick="document.getElementById('restore-input').click()" title="Yedeği geri yükle">⬆ Geri Yükle</button>
+      <input type="file" id="restore-input" accept=".json" style="display:none" onchange="restoreFromBackup(this)">
+    </div>
+    <div class="sb-backup-info" id="backup-info">—</div>
+  </div>
   <div class="sb-foot">
     <div class="user">Trio BRC Endüstriyel</div>
     <div>2026 Satış CRM</div>
@@ -951,22 +978,6 @@ tr:hover td { background: #f8faff; }
           </thead>
           <tbody id="pipe-tbody"></tbody>
         </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══ VERİ YEDEKLEMEPipelinein altı ══ -->
-  <div style="padding:0 16px 24px">
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">🗄️ Veri Yedekleme</span>
-        <span class="card-sub">Pipeline + Satış verilerinin tamamı</span>
-      </div>
-      <div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-primary" onclick="backupAllData()">⬇ Yedek Al (JSON)</button>
-        <button class="btn btn-sm" onclick="document.getElementById('restore-input').click()">⬆ Yedekten Geri Yükle</button>
-        <input type="file" id="restore-input" accept=".json" style="display:none" onchange="restoreFromBackup(this)">
-        <span style="color:var(--text3);font-size:13px" id="backup-info">— Son yedek bilgisi yok</span>
       </div>
     </div>
   </div>
