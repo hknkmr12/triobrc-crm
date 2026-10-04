@@ -938,7 +938,7 @@ tr:hover td { background: #f8faff; }
       <div class="card">
         <div class="card-header"><span class="card-title">Aşamaya Göre Müşteri Pipeline</span></div>
         <div class="card-body" style="padding:8px 4px">
-          <div id="chPipeMustWrap" style="overflow-y:auto;max-height:260px">
+          <div id="chPipeMustWrap" style="overflow:hidden">
             <canvas id="chPipeMust"></canvas>
           </div>
         </div>
@@ -946,7 +946,7 @@ tr:hover td { background: #f8faff; }
       <div class="card">
         <div class="card-header"><span class="card-title">Pipeline Özet</span></div>
         <div class="card-body" style="padding:8px 0">
-          <div style="display:flex;align-items:flex-start;justify-content:space-around;gap:8px;flex-wrap:wrap">
+          <div id="pipe-gauges-row" style="display:flex;align-items:center;justify-content:space-around;gap:8px;flex-wrap:wrap;min-height:200px">
             <!-- Sol: Pipeline gauge -->
             <div id="pipe-gauge-wrap" style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:130px"></div>
             <!-- Sağ: Hedef gauge -->
@@ -3242,14 +3242,18 @@ function renderPipeline(){
     });
     const sorted=Object.entries(custMap).sort((a,b)=>b[1].total-a[1].total);
     const labels=sorted.map(([n])=>n.length>22?n.slice(0,20)+'…':n);
-    const barH=28, minH=100;
-    const canvasH=Math.max(minH, labels.length*barH+40);
+    const barH=36, minH=120;
+    const canvasH=Math.max(minH, labels.length*barH+60);
     const canvas=document.getElementById('chPipeMust');
     canvas.style.height=canvasH+'px';
     canvas.style.width='100%';
     canvas.height=canvasH;
     // Etiket butonları
     const wrap=document.getElementById('chPipeMustWrap');
+    wrap.style.height=canvasH+'px';
+    // Sağ gauge panelini aynı yüksekliğe getir ve ortala
+    const gaugesRow=document.getElementById('pipe-gauges-row');
+    if(gaugesRow) gaugesRow.style.minHeight=canvasH+'px';
     let btnBar=document.getElementById('pipeMustBtnBar');
     if(!btnBar){
       btnBar=document.createElement('div');
