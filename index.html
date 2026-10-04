@@ -2842,7 +2842,7 @@ function importPipelineExcel(input){
     input.value=''; return;
   }
   if(file.name.match(/\.xlsx?$/i)){
-    showToast('❌ Excel dosyasını "CSV UTF-8 (virgülle ayrılmış)" olarak kaydedin, sonra yükleyin','e');
+    showToast('❌ Excel dosyasını "CSV UTF-8" veya "CSV (noktalı virgülle ayrılmış)" olarak kaydedin, sonra yükleyin','e');
     input.value=''; return;
   }
 
@@ -2850,6 +2850,51 @@ function importPipelineExcel(input){
   reader.onload = async function(e){
     const text = e.target.result.replace(/^﻿/,''); // BOM temizle
     const lines = text.split(/\r?\n/).filter(l=>l.trim());
+
+    if(lines.length < 2){
+      showToast('⚠ Dosyada veri satırı bulunamadı','w');
+      input.value=''; return;
+    }
+
+    // Otomatik ayraç tespiti: ; yoksa , kullan
+    const firstLine = lines[0];
+    const delim = firstLine.includes(';') ? ';' : ',';
+
+    // CSV satırını ayraç ile parçalara bölen yardımcı fonksiyon
+    function parseCSVLine(line){
+      const cols = [];
+      let cur='', inQ=false;
+      for(let ci=0;ci<line.length;ci++){
+        const ch=line[ci];
+        if(ch==='"'){ inQ=!inQ; }
+        else if(ch===delim&&!inQ){ cols.push(cur.trim()); cur=''; }
+        else cur+=ch;
+      }
+      cols.push(cur.trim());
+      return cols;
+    }
+
+    // Başlık satırını oku ve sütun indekslerini bul
+    const headerCols = parseCSVLine(firstLine).map(h=>h.toLowerCase().trim()
+      .replace(/\(.*?\)/g,'').replace(/[%]/g,'').trim());
+
+    function hIdx(candidates){
+      for(const c of candidates){
+        const i = headerCols.findIndex(h=>h.includes(c));
+        if(i>=0) return i;
+      }
+      return -1;
+    }
+
+    const iRep      = hIdx(['temsilci']);
+    const iCari     = hIdx(['müşteri','musteri','cari']);
+    const iFirsat   = hIdx(['fırsat','firsat']);
+    const iKat      = hIdx(['kategori']);
+    const iCeyrek   = hIdx(['çeyrek','ceyrek','dönem','donem','period']);
+    const iTutar    = hIdx(['tutar','amount']);
+    const iOlasilik = hIdx(['olasılık','olasilik','prob']);
+    const iAsama    = hIdx(['aşama','asama','stage']);
+    const iNot      = hIdx(['not','note']);
 
     // Başlık + referans satırlarını atla
     const dataRows = lines.slice(1).filter(l=>{
@@ -2864,18 +2909,19 @@ function importPipelineExcel(input){
     const valid  = [];
 
     dataRows.forEach((line, li)=>{
-      // CSV parse — tırnak içi virgül destekli
-      const cols = [];
-      let cur='', inQ=false;
-      for(let ci=0;ci<line.length;ci++){
-        const ch=line[ci];
-        if(ch==='"'){ inQ=!inQ; }
-        else if(ch===','&&!inQ){ cols.push(cur.trim()); cur=''; }
-        else cur+=ch;
-      }
-      cols.push(cur.trim());
+      const cols = parseCSVLine(line);
 
-      const [repRaw,cari,firsat,katRaw,ceyrek,asamaRaw,tutarStr,olasilikStr,not] = cols;
+      // Başlık eşleştirmesi varsa kullan, yoksa pozisyona geri dön
+      const repRaw    = iRep>=0      ? cols[iRep]      : cols[0];
+      const cari      = iCari>=0     ? cols[iCari]     : cols[1];
+      const firsat    = iFirsat>=0   ? cols[iFirsat]   : cols[2];
+      const katRaw    = iKat>=0      ? cols[iKat]      : cols[3];
+      const ceyrek    = iCeyrek>=0   ? cols[iCeyrek]   : cols[4];
+      const tutarStr  = iTutar>=0    ? cols[iTutar]    : cols[5];
+      const olasilikStr = iOlasilik>=0 ? cols[iOlasilik] : cols[6];
+      const asamaRaw  = iAsama>=0    ? cols[iAsama]   : cols[7];
+      const not       = iNot>=0      ? cols[iNot]     : (cols[8]||'');
+
       const rowNum = li+2;
 
       if(!repRaw&&!cari&&!firsat) return; // boş satır
