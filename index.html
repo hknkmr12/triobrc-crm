@@ -827,12 +827,18 @@ tr:hover td { background: #f8faff; }
         <option value="01">Ocak</option><option value="02">Şubat</option>
         <option value="03">Mart</option><option value="04">Nisan</option>
         <option value="05">Mayıs</option><option value="06">Haziran</option>
+        <option value="07">Temmuz</option><option value="08">Ağustos</option>
+        <option value="09">Eylül</option><option value="10">Ekim</option>
+        <option value="11">Kasım</option><option value="12">Aralık</option>
       </select>
       <select class="f-select" id="h-kat" onchange="filterTable()">
         <option value="">Tüm Kategoriler</option>
-        <option value="KİMYASAL">Kimyasal</option>
-        <option value="SÖZLEŞME">Sözleşme</option>
-        <option value="EKİPMAN">Ekipman</option>
+        <option value="M. KİMYASAL">Mevcut Kimyasal</option>
+        <option value="M. SÖZLEŞME">Mevcut Sözleşme</option>
+        <option value="M. EKİPMAN">Mevcut Ekipman</option>
+        <option value="Y. KİMYASAL">Yeni Kimyasal</option>
+        <option value="Y. SÖZLEŞME">Yeni Sözleşme</option>
+        <option value="Y. EKİPMAN">Yeni Ekipman</option>
       </select>
     </div>
     <div class="card" style="margin-top:0">
@@ -2298,7 +2304,7 @@ function getFilteredHar(){
     if(HAR_REP!=='ALL'&&r.rep!==HAR_REP) return false;
     if(q&&!r.cari.toLowerCase().includes(q)&&!r.urun.toLowerCase().includes(q)&&!(r.aciklama||'').toLowerCase().includes(q)) return false;
     if(ay&&gm(r.tarih)!==ay) return false;
-    if(kat&&!getCat(r.satis_elemani).includes(kat)) return false;
+    if(kat&&getCat(r.satis_elemani)!==kat) return false;
     return true;
   });
   return applySortState(filtered, HAR_SORT);
@@ -3167,15 +3173,21 @@ function renderPipeline(){
   // Yüksek olasılıklı = ≥%75 VEYA Kapandı VEYA %100
   const highProb=actives.filter(p=>p.olasilik>=75||p.asama==='Kapandı'||p.olasilik===100);
   const totalAg=highProb.reduce((s,p)=>s+p.tutar,0);
-  // Satışa dönmesi beklenen = Sıcak + yüksek olasılıklı açık fırsatlar
-  const beklenen=actives.filter(p=>(p.asama==='Sıcak'||p.olasilik>=75||p.olasilik===100)&&p.asama!=='Kapandı');
-  const totalBeklenen=beklenen.reduce((s,p)=>s+p.tutar,0);
+  // Sözleşme Faturaları = Q4 M.SÖZLEŞME + Y.SÖZLEŞME satışları (rep filtresine göre)
+  const sozQ4Src = PIPE_REP==='ALL' ? salesData : salesData.filter(r=>r.rep===PIPE_REP);
+  const sozQ4 = sozQ4Src.filter(r=>{
+    const m = gm(r.tarih);
+    if(!['10','11','12'].includes(m)) return false;
+    const cat = getCat(r.satis_elemani);
+    return cat==='M. SÖZLEŞME'||cat==='Y. SÖZLEŞME';
+  });
+  const totalSozQ4 = sozQ4.reduce((s,r)=>s+r.tutar,0);
 
   document.getElementById('pipe-kpis').innerHTML=[
     {label:'Toplam Pipeline',val:fmt(totalTah),sub:openActives.length+' açık fırsat · Kayıp hariç',color:'kc-orange'},
     {label:'Yüksek Olasılıklı',val:fmt(totalAg),sub:'≥%75 + Kapandı + %100 · '+highProb.length+' fırsat',color:'kc-green'},
-    {label:'Açık Fırsat',val:openActives.length+' adet',sub:'Kayıp ve Kapandı hariç',color:'kc-gray'},
-    {label:'Satışa Dönmesi Beklenen',val:fmt(totalBeklenen),sub:'Sıcak + yüksek olasılıklı',color:'kc-blue'},
+    {label:'Fırsat Adedi',val:actives.length+'',sub:'Kayıp hariç tüm aşamalar',color:'kc-gray'},
+    {label:'Sözleşme Faturaları',val:fmt(totalSozQ4),sub:'Q4 Mevcut + Yeni Sözleşme',color:'kc-blue'},
   ].map((k,i)=>`<div class="kpi-card ${k.color}" style="animation-delay:${i*.04}s">
     <div class="kpi-label">${k.label}</div>
     <div class="kpi-value">${k.val}</div>
@@ -3291,13 +3303,13 @@ function renderPipeline(){
         <div style="font-size:10px;color:var(--text3)">Yüksek Olasılıklı</div>
       </div>`;
 
-    // Hedef gauge (sağ) — YTD satışlar + yüksek olasılıklı pipeline = yıl sonu beklenti
+    // Hedef gauge (sağ) — YTD satışlar + yüksek olasılıklı pipeline + Q4 sözleşme = yıl sonu beklenti
     const yHg = (!PIPE_REP||PIPE_REP==='ALL') ? getTotalYearTarget() : getRepYearTarget(PIPE_REP);
     // YTD gerçekleşen satışlar
     const ytdSales = (!PIPE_REP||PIPE_REP==='ALL')
       ? salesData.reduce((s,r)=>s+r.tutar,0)
       : salesData.filter(r=>r.rep===PIPE_REP).reduce((s,r)=>s+r.tutar,0);
-    const yilSonuBeklenti = ytdSales + highProbVal;
+    const yilSonuBeklenti = ytdSales + highProbVal + totalSozQ4;
     const dispPct2  = yHg>0 ? Math.round(yilSonuBeklenti/yHg*100) : null;
     const col2 = dispPct2===null?'#94a3b8':dispPct2>=100?C.green:dispPct2>=70?C.orange:C.blue;
     const filled2   = yHg>0 ? Math.min(yilSonuBeklenti/yHg,1)*circ : 0;
@@ -3317,7 +3329,7 @@ function renderPipeline(){
       <div style="text-align:center;line-height:1.8;margin-top:4px">
         <div style="font-size:11px;font-weight:700;color:${col2}">${fmt(yilSonuBeklenti)}</div>
         <div style="font-size:10px;color:var(--text3)">Beklenen Toplam</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px">${fmt(ytdSales)} satış + ${fmt(highProbVal)} pipeline</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">${fmt(ytdSales)} satış + ${fmt(highProbVal)} pipeline${totalSozQ4>0?' + '+fmt(totalSozQ4)+' sözleşme':''}</div>
         ${yHg>0?`<div style="font-size:10px;color:var(--text3);margin-top:2px">Hedef: <strong style="color:var(--text2)">${fmt(yHg)}</strong></div>`:`<div style="font-size:10px;color:var(--text3);margin-top:4px">Hedef girilmedi</div>`}
         ${yHg>0&&yilSonuBeklenti<yHg?`<div style="font-size:10px;color:${C.red};margin-top:2px">Açık: ${fmt(yHg-yilSonuBeklenti)}</div>`:''}
         ${yHg>0&&yilSonuBeklenti>=yHg?`<div style="font-size:10px;color:${C.green};font-weight:700;margin-top:2px">✓ Hedef kapsanıyor</div>`:''}
