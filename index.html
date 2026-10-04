@@ -1232,7 +1232,7 @@ async function loadAll(){
       const lsSalesCheck = lsGet(LS.SALES);
       if(lsSalesCheck && lsSalesCheck.length>0){
         // localStorage'da veri var: seed yapma, onu kullan; Supabase'e yükle
-        console.log('Supabase boş ama localStorage'da '+lsSalesCheck.length+' kayıt var, seed\'leniyor...');
+        console.log('Supabase bos ama localStorage da '+lsSalesCheck.length+' kayit var, seed leniyor...');
         salesData = lsSalesCheck;
         await seedSales(salesData.map(r=>({ rep:r.rep,sira:r.sira,cari:r.cari,tarih:r.tarih,urun:r.urun,miktar:r.miktar,birim:r.birim,birim_fiyat:r.birim_fiyat,doviz:r.doviz,kur:r.kur,tutar:r.tutar,satis_elemani:r.satis_elemani,aciklama:r.aciklama })));
       } else {
