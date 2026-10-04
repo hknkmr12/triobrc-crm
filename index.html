@@ -926,7 +926,7 @@ tr:hover td { background: #f8faff; }
     </div>
     </div>
     <!-- Pipeline KPIs -->
-    <div class="kpi-row kpi-row-4" id="pipe-kpis"></div>
+    <div class="kpi-row kpi-row-4" id="pipe-kpis" style="margin-top:16px"></div>
     <!-- Charts -->
     <div class="g2" style="margin-bottom:16px">
       <div class="card">
@@ -1231,7 +1231,7 @@ async function loadAll(){
     const { data:potRows, error:e3 } = await _sb.from('potansiyel').select('*').order('created_at',{ascending:false});
     if(!e3 && potRows){ potData = potRows.map(p=>({
       _pid:p.id, rep:p.rep, cari:p.cari||'', firsat:p.firsat||'',
-      kat:p.kat||'', ceyrek:p.ceyrek||'Q3 2026', asama:p.asama||'Teklif',
+      kat:p.kat||'', ceyrek:p.ceyrek||'', asama:p.asama||'Teklif',
       tutar:Number(p.tutar)||0, olasilik:Number(p.olasilik)||50, not:p.not_text||'',
       satis_ay:p.satis_ay||''
     })); }
@@ -1340,9 +1340,11 @@ async function dbSavePot(pot){
     olasilik:pot.olasilik, not_text:pot.not||'', satis_ay:pot.satis_ay||null
   };
   if(pot._pid && String(pot._pid).includes('-')){
-    await _sb.from('potansiyel').update(payload).eq('id',pot._pid);
+    const {error:ue} = await _sb.from('potansiyel').update(payload).eq('id',pot._pid);
+    if(ue){ console.error('dbSavePot update error:', ue); showToast('⚠️ Kayıt güncellenemedi: '+ue.message,'e'); }
   } else {
-    const {data} = await _sb.from('potansiyel').insert(payload).select().single();
+    const {data,error:ie} = await _sb.from('potansiyel').insert(payload).select().single();
+    if(ie){ console.error('dbSavePot insert error:', ie); showToast('⚠️ Kayıt eklenemedi: '+ie.message,'e'); }
     if(data) pot._pid = data.id;
   }
   setSyncing(false);
