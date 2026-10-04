@@ -719,7 +719,9 @@ tr:hover td { background: #f8faff; }
       <span class="cat-banner-clear" onclick="clearCatFilter()">✕ Filtreyi Temizle</span>
     </div>
     <!-- KPI kartları: 4 sütun yatay -->
-    <div id="rep-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px"></div>
+    <div id="rep-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:4px"></div>
+    <!-- Radar grafikleri: her KPI kartının altında hizalı, 4 sütun -->
+    <div id="rep-radars" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px"></div>
     <!-- Satır 1: Aylık Trend (büyük, sol) + Kategori Dağılımı (sağ) -->
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
       <div class="card">
@@ -1889,6 +1891,93 @@ function _updateRepKpisAndTrend(){
       </div>
     </div>`;
   }).join('');
+
+  // ── Radar grafikleri — her temsilci için ayrı ──────────────────
+  const radarWrap = document.getElementById('rep-radars');
+  if(radarWrap){
+    // Tüm temsilcilerin kategori toplamlarını hesapla (normalize için max)
+    const catMaxAll = CAT_KEYS.map(cat =>
+      Math.max(1, ...REPS_ORDER.map(rep =>
+        salesData.filter(r=>r.rep===rep).reduce((s,r)=>getCat(r.satis_elemani)===cat?s+r.tutar:s, 0)
+      ))
+    );
+
+    // Mevcut chart instance'larını temizle
+    REPS_ORDER.forEach(rep=>{
+      const existing = Chart.getChart('chRadar_'+rep);
+      if(existing) existing.destroy();
+    });
+
+    radarWrap.innerHTML = REPS_ORDER.map((rep,ri)=>{
+      const col = REPS[rep].color;
+      return `<div class="card" style="padding:8px 4px 4px">
+        <div style="font-size:10px;font-weight:700;color:${col};text-align:center;margin-bottom:2px;letter-spacing:.3px">
+          Kategori Profili
+        </div>
+        <div style="height:180px;position:relative">
+          <canvas id="chRadar_${rep}"></canvas>
+        </div>
+      </div>`;
+    }).join('');
+
+    // Her temsilci için radar chart oluştur
+    REPS_ORDER.forEach((rep, ri)=>{
+      const col  = REPS[rep].color;
+      const recs = salesData.filter(r=>r.rep===rep);
+      const vals = CAT_KEYS.map((cat,ci)=>{
+        const raw = recs.reduce((s,r)=>getCat(r.satis_elemani)===cat?s+r.tutar:s, 0);
+        return catMaxAll[ci]>0 ? Math.round(raw/catMaxAll[ci]*100) : 0;
+      });
+      // Kısa etiketler
+      const shortLabels = CAT_KEYS.map(k=>k.replace('M. ','M.').replace('Y. ','Y.'));
+
+      new Chart(document.getElementById('chRadar_'+rep), {
+        type: 'radar',
+        data: {
+          labels: shortLabels,
+          datasets:[{
+            label: REPS[rep].label,
+            data: vals,
+            borderColor: col,
+            backgroundColor: col+'28',
+            borderWidth: 2,
+            pointRadius: 3,
+            pointBackgroundColor: col,
+            pointBorderColor: '#fff',
+            pointBorderWidth: 1.5
+          }]
+        },
+        options:{
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins:{
+            legend:{ display:false },
+            tooltip:{
+              callbacks:{
+                label: ctx => {
+                  const ci = ctx.dataIndex;
+                  const raw = recs.reduce((s,r)=>getCat(r.satis_elemani)===CAT_KEYS[ci]?s+r.tutar:s,0);
+                  return ' '+CAT_KEYS[ci]+': '+fmt(raw);
+                }
+              }
+            }
+          },
+          scales:{
+            r:{
+              min:0, max:100,
+              ticks:{ display:false, stepSize:25 },
+              grid:{ color:'#e2e8f0' },
+              angleLines:{ color:'#e2e8f0' },
+              pointLabels:{
+                font:{ size:8.5, weight:'600' },
+                color:'#64748b'
+              }
+            }
+          }
+        }
+      });
+    });
+  }
 
   // Aylık Trend başlığı
   const trendSub = document.getElementById('rep-trend-sub');
