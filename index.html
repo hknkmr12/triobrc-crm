@@ -921,19 +921,22 @@ tr:hover td { background: #f8faff; }
     <!-- Charts -->
     <div class="g2" style="margin-bottom:16px">
       <div class="card">
-        <div class="card-header">
-          <span class="card-title">Çeyrek Bazında Pipeline</span>
-          <button class="ch-eye" onclick="toggleLabels('chPipeCeyrek',this)">👁</button>
-        </div>
-        <div class="card-body">
-          <div class="ch-wrap" style="height:200px"><canvas id="chPipeCeyrek"></canvas></div>
+        <div class="card-header"><span class="card-title">Aşamaya Göre Müşteri Pipeline</span></div>
+        <div class="card-body" style="padding:8px 4px">
+          <div id="chPipeMustWrap" style="overflow-y:auto;max-height:260px">
+            <canvas id="chPipeMust"></canvas>
+          </div>
         </div>
       </div>
       <div class="card">
-        <div class="card-header"><span class="card-title">Aşama Dağılımı</span></div>
-        <div class="card-body">
-          <div class="ch-wrap" style="height:160px"><canvas id="chPipeAsama"></canvas></div>
-          <div id="pipeLegend" style="margin-top:8px"></div>
+        <div class="card-header"><span class="card-title">Pipeline Özet</span></div>
+        <div class="card-body" style="padding:8px 0">
+          <div style="display:flex;align-items:flex-start;justify-content:space-around;gap:8px;flex-wrap:wrap">
+            <!-- Sol: Pipeline gauge -->
+            <div id="pipe-gauge-wrap" style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:130px"></div>
+            <!-- Sağ: Hedef gauge -->
+            <div id="pipe-hedef-wrap" style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:130px"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -3147,42 +3150,115 @@ function renderPipeline(){
     <div class="kpi-sub">${k.sub}</div>
   </div>`).join('');
 
-  // Çeyrek chart
-  destroyChart('chPipeCeyrek');
-  const qKeys=['Q3 2026','Q4 2026','Q1 2027','Q2 2027'];
-  _chPipC=new Chart(document.getElementById('chPipeCeyrek'),{
-    type:'bar',
-    data:{labels:qKeys,datasets:[
-      {label:'Tahmini',data:qKeys.map(q=>Math.round(basePot.filter(p=>p.ceyrek===q).reduce((s,p)=>s+p.tutar,0))),backgroundColor:C.orange+'33',borderColor:C.orange,borderWidth:2,borderRadius:5},
-      {label:'Yüksek Olasılıklı (≥%75)',data:qKeys.map(q=>Math.round(basePot.filter(p=>p.ceyrek===q&&p.olasilik>=75).reduce((s,p)=>s+p.tutar,0))),backgroundColor:C.green+'33',borderColor:C.green,borderWidth:2,borderRadius:5}
-    ]},
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      animation:{duration:600,easing:'easeOutQuart',onComplete(e){paintLabels(e.chart);}},
-      interaction:{mode:'index',intersect:false},
-      plugins:{legend:{position:'top',labels:{color:'#64748b',font:{size:11},boxWidth:12}},tooltip:{...TOOLTIP_STYLE}},
-      scales:SCALE_STYLE
-    }
-  });
+  // Müşteri bazında yatay bar — aşamaya göre renkli
+  if(_chPipC){ _chPipC.destroy(); _chPipC=null; }
+  if(_chPipA){ _chPipA.destroy(); _chPipA=null; }
+  (function(){
+    const ASAMA_COLS={Teklif:C.blue,Görüşme:C.orange,Sıcak:'#22c55e',Kapandı:'#16a34a',Kayıp:C.red};
+    const ASAMALAR=['Sıcak','Teklif','Görüşme','Kapandı','Kayıp'];
+    // Müşteri toplamları
+    const custMap={};
+    basePot.forEach(p=>{
+      if(!custMap[p.cari]) custMap[p.cari]={total:0,byAsama:{}};
+      custMap[p.cari].total+=p.tutar;
+      custMap[p.cari].byAsama[p.asama]=(custMap[p.cari].byAsama[p.asama]||0)+p.tutar;
+    });
+    const sorted=Object.entries(custMap).sort((a,b)=>b[1].total-a[1].total).slice(0,20);
+    const labels=sorted.map(([n])=>n.length>22?n.slice(0,20)+'…':n);
+    const barH=28, minH=160;
+    const canvasH=Math.max(minH, labels.length*barH+40);
+    const canvas=document.getElementById('chPipeMust');
+    canvas.style.height=canvasH+'px';
+    canvas.style.width='100%';
+    canvas.height=canvasH;
+    const datasets=ASAMALAR.map(a=>({
+      label:a,
+      data:sorted.map(([,v])=>Math.round(v.byAsama[a]||0)),
+      backgroundColor:(ASAMA_COLS[a]||'#94a3b8')+'cc',
+      borderColor:ASAMA_COLS[a]||'#94a3b8',
+      borderWidth:1,
+      borderRadius:3
+    }));
+    _chPipC=new Chart(canvas,{
+      type:'bar',
+      data:{labels,datasets},
+      options:{
+        indexAxis:'y',
+        responsive:true,maintainAspectRatio:false,
+        animation:{duration:600},
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{position:'top',labels:{color:'#64748b',font:{size:10},boxWidth:10,padding:8}},
+          tooltip:{...TOOLTIP_STYLE,callbacks:{label:ctx=>' '+ctx.dataset.label+': '+fmt(ctx.parsed.x)}}
+        },
+        scales:{
+          x:{stacked:true,grid:{color:'#e4e8f244'},ticks:{color:'#94a3b8',font:{size:9},callback:v=>v>=1000?Math.round(v/1000)+'K':''+v}},
+          y:{stacked:true,grid:{display:false},ticks:{color:'#334155',font:{size:10}}}
+        }
+      }
+    });
+  })();
 
-  // Aşama donut
-  destroyChart('chPipeAsama');
-  const asamalar=['Teklif','Görüşme','Sıcak','Kapandı','Kayıp'];
-  const aCols=[C.blue,C.orange,C.green,C.green,C.red];
-  const aCounts=asamalar.map(a=>basePot.filter(p=>p.asama===a).reduce((s,p)=>s+p.tutar,0));
-  _chPipA=new Chart(document.getElementById('chPipeAsama'),{
-    type:'doughnut',
-    data:{labels:asamalar,datasets:[{data:aCounts.map(v=>Math.round(v)),backgroundColor:aCols.map(c=>c+'cc'),borderWidth:2,borderColor:'#fff'}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
-      animation:{duration:600},
-      plugins:{legend:{display:false},tooltip:{...TOOLTIP_STYLE,callbacks:{label:ctx=>ctx.label+': '+fmt(ctx.parsed)}}}}
-  });
-  document.getElementById('pipeLegend').innerHTML=asamalar.map((a,i)=>`
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-      <div style="width:7px;height:7px;border-radius:50%;background:${aCols[i]};flex-shrink:0"></div>
-      <span style="font-size:10px;color:var(--text2);flex:1">${a}</span>
-      <span style="font-size:10px;font-family:var(--mono);color:var(--text)">${fmt(aCounts[i])}</span>
-    </div>`).join('');
+  // Pipeline gauge (sol) + Hedef gauge (sağ)
+  (function(){
+    const totalPipe   = basePot.reduce((s,p)=>s+p.tutar,0);
+    const highProb    = basePot.filter(p=>p.olasilik>=75).reduce((s,p)=>s+p.tutar,0);
+    const R=52, stroke=12, cx=68, cy=68;
+    const circ=2*Math.PI*R;
+    const filledGray  = circ; // tam daire = total pipeline
+    const filledGreen = totalPipe>0 ? Math.min(highProb/totalPipe,1)*circ : 0;
+    const pctGreen    = totalPipe>0 ? Math.round(highProb/totalPipe*100) : 0;
+    document.getElementById('pipe-gauge-wrap').innerHTML=`
+      <svg width="136" height="136" viewBox="0 0 136 136">
+        <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#94a3b822" stroke-width="${stroke}"/>
+        <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
+          stroke="#94a3b866" stroke-width="${stroke}"
+          stroke-dasharray="${filledGray.toFixed(2)} 0"
+          transform="rotate(-90 ${cx} ${cy})"/>
+        <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
+          stroke="#4ade80" stroke-width="${stroke}" stroke-linecap="round"
+          stroke-dasharray="${filledGreen.toFixed(2)} ${circ.toFixed(2)}"
+          transform="rotate(-90 ${cx} ${cy})"
+          style="transition:stroke-dasharray .9s ease"/>
+        <text x="${cx}" y="${cy-4}" text-anchor="middle"
+          font-family="Inter,sans-serif" font-size="22" font-weight="800" fill="#0f1623">${pctGreen}%</text>
+        <text x="${cx}" y="${cy+13}" text-anchor="middle"
+          font-family="Inter,sans-serif" font-size="8" letter-spacing="1" fill="#94a3b8">YÜKSEK OL.</text>
+      </svg>
+      <div style="text-align:center;line-height:1.8;margin-top:4px">
+        <div style="font-size:11px;font-weight:700;color:var(--text)">${fmt(totalPipe)}</div>
+        <div style="font-size:10px;color:var(--text3)">Toplam Pipeline</div>
+        <div style="font-size:11px;font-weight:700;color:#22c55e;margin-top:2px">${fmt(highProb)}</div>
+        <div style="font-size:10px;color:var(--text3)">Yüksek Olasılıklı</div>
+      </div>`;
+
+    // Hedef gauge (sağ)
+    const yHg = (!PIPE_REP||PIPE_REP==='ALL') ? getTotalYearTarget() : getRepYearTarget(PIPE_REP);
+    const pipeRatio = yHg>0 ? Math.min(totalPipe/yHg,1.5) : null;
+    const dispPct2  = yHg>0 ? Math.round(totalPipe/yHg*100) : null;
+    const col2 = dispPct2===null?'#94a3b8':dispPct2>=100?C.green:dispPct2>=60?C.orange:C.blue;
+    const filled2   = pipeRatio!==null ? Math.min(pipeRatio,1)*circ : 0;
+    document.getElementById('pipe-hedef-wrap').innerHTML=`
+      <svg width="136" height="136" viewBox="0 0 136 136">
+        <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#e4e8f2" stroke-width="${stroke}"/>
+        <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
+          stroke="${col2}" stroke-width="${stroke}" stroke-linecap="round"
+          stroke-dasharray="${filled2.toFixed(2)} ${circ.toFixed(2)}"
+          transform="rotate(-90 ${cx} ${cy})"
+          style="transition:stroke-dasharray .9s ease"/>
+        <text x="${cx}" y="${cy-4}" text-anchor="middle"
+          font-family="Inter,sans-serif" font-size="22" font-weight="800" fill="#0f1623">${dispPct2!==null?dispPct2+'%':'—'}</text>
+        <text x="${cx}" y="${cy+13}" text-anchor="middle"
+          font-family="Inter,sans-serif" font-size="8" letter-spacing="1" fill="#94a3b8">HEDEF KAPSAMI</text>
+      </svg>
+      <div style="text-align:center;line-height:1.8;margin-top:4px">
+        <div style="font-size:11px;font-weight:700;color:var(--text)">${fmt(totalPipe)}</div>
+        <div style="font-size:10px;color:var(--text3)">Pipeline Değeri</div>
+        ${yHg>0?`<div style="font-size:11px;font-weight:700;color:var(--text2);margin-top:2px">${fmt(yHg)}</div>
+        <div style="font-size:10px;color:var(--text3)">Yıl Sonu Hedef</div>`:`<div style="font-size:10px;color:var(--text3);margin-top:4px">Hedef girilmedi</div>`}
+        ${yHg>0&&totalPipe<yHg?`<div style="font-size:10px;color:${C.red};margin-top:2px">Açık: ${fmt(yHg-totalPipe)}</div>`:''}
+      </div>`;
+  })();
 
   // Table
   const ABADGE={Teklif:'pot-badge-teklif',Görüşme:'pot-badge-gorusme',Sıcak:'pot-badge-sicak',Kapandı:'pot-badge-kapandi',Kayıp:'pot-badge-kayip'};
