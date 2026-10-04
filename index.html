@@ -6,6 +6,7 @@
 <title>Trio BRC — Satış CRM 2026</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <script>
 // Fix sticky tooltip
 document.addEventListener('mouseleave', function(e){
@@ -2213,8 +2214,8 @@ function renderMusteri(){
          borderColor:top20.map(d=>d.seg==='A'?C.green:d.seg==='B'?C.blue:C.gray),
          borderWidth:1,borderRadius:4,yAxisID:'y'},
         {label:'Kümülatif %',data:top20.map(d=>Math.round(d.cumPct*10)/10),
-         type:'line',borderColor:C.orange,borderWidth:2.5,
-         pointBackgroundColor:C.orange,pointRadius:4,
+         type:'line',borderColor:'#c72b2b',borderWidth:2.5,
+         pointBackgroundColor:'#c72b2b',pointRadius:4,
          fill:false,tension:.35,yAxisID:'y2'}
       ]
     },
@@ -2228,12 +2229,34 @@ function renderMusteri(){
           label:(ctx)=>ctx.dataset.label==='Kümülatif %'
             ?' Kümülatif: '+ctx.parsed.y.toFixed(1)+'%'
             :' '+ctx.dataset.label+': €'+fmtN(ctx.parsed.y)
-        }}
+        }},
+        annotation:{
+          annotations:{
+            line80:{
+              type:'line',
+              yScaleID:'y2',
+              yMin:80,yMax:80,
+              borderColor:'#c72b2b',
+              borderWidth:1.5,
+              borderDash:[6,4],
+              label:{
+                content:'%80 Eşiği',
+                display:true,
+                position:'end',
+                color:'#c72b2b',
+                font:{size:10,weight:'600'},
+                backgroundColor:'#fee2e2',
+                padding:{x:6,y:3},
+                borderRadius:4
+              }
+            }
+          }
+        }
       },
       scales:{
         x:{ticks:{color:'#8892b0',font:{size:10},maxRotation:28,minRotation:0},grid:{display:false}},
         y:{position:'left',ticks:{color:'#8892b0',callback:v=>'€'+fmtN(v)},grid:{color:'#edf0f8'}},
-        y2:{position:'right',min:0,max:100,ticks:{color:C.orange,callback:v=>v+'%'},grid:{display:false}}
+        y2:{position:'right',min:0,max:100,ticks:{color:'#c72b2b',callback:v=>v+'%'},grid:{display:false}}
       }
     }
   });
