@@ -881,7 +881,9 @@ tr:hover td { background: #f8faff; }
   <div class="topbar">
     <div><div class="topbar-title">Pipeline</div><div class="topbar-sub">Potansiyel Satışlar & Forecast</div></div>
     <div class="topbar-actions">
-      <button class="btn btn-sm" onclick="migrateKapandiToSales()" title="Kapandı durumundaki ancak henüz Satış Hareketleri'ne eklenmemiş fırsatları ekle" style="color:var(--orange);border-color:var(--orange)">⚡ Kapandıları Aktar</button>
+      <button class="btn btn-sm" onclick="document.getElementById('pipe-excel-input').click()" title="Excel şablonunu doldurup yükleyin">📥 Excel Yükle</button>
+      <input type="file" id="pipe-excel-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="importPipelineExcel(this)">
+      <button class="btn btn-sm" onclick="downloadPipelineTemplate()" title="Boş fırsat şablonunu indir">⬇ Şablon İndir</button>
       <button class="btn btn-primary" onclick="openPotModal()">+ Fırsat Ekle</button>
     </div>
   </div>
@@ -2760,35 +2762,133 @@ async function _addPotToSales(p, tarih){
   return newRow;
 }
 
-// Mevcut "Kapandı" pipeline kayıtlarını Satış Hareketleri'ne aktar
-async function migrateKapandiToSales(){
-  // Daha önce pipeline'dan eklenen satışların fırsat adlarını bul
-  const alreadyAdded = new Set(salesData.filter(s=>s.aciklama&&s.aciklama.startsWith("Pipeline'dan:")).map(s=>s.aciklama.replace("Pipeline'dan:","").trim()));
-  const kapandilar = potData.filter(p=>p.asama==='Kapandı' && p.olasilik===100);
-  const bekleyenler = kapandilar.filter(p=>!alreadyAdded.has(p.firsat));
+// ── Pipeline Excel Şablonu İndir ─────────────────────────────
+function downloadPipelineTemplate(){
+  // CSV formatında şablon (Excel'de açılır)
+  const BOM = '﻿';
+  const headers = [
+    'Temsilci','Müşteri Adı','Fırsat Adı','Kategori',
+    'Çeyrek','Aşama','Tutar (EUR)','Olasılık (%)','Not'
+  ];
+  const examples = [
+    ['GOKHAN_KAYA','ÖRNEK A.Ş.','Su Arıtma Sistemi Satışı','M. KİMYASAL','Q4 2026','Teklif','25000','60','İlk görüşme yapıldı'],
+    ['HAKAN_KEMER','TEST LTD.','Soğutma Kulesi Bakım','Y. SÖZLEŞME','Q4 2026','Görüşme','18000','40','Teklif hazırlanıyor'],
+  ];
+  const info = [
+    [],
+    ['--- REFERANS TABLOSU ---'],
+    ['Temsilci Kodları:','GOKHAN_KAYA','HAKAN_KEMER','HOUSE_ACCOUNT','KUTSİ_DEVECİ'],
+    ['Kategori Seçenekleri:','M. KİMYASAL','M. SÖZLEŞME','M. EKİPMAN','Y. KİMYASAL','Y. SÖZLEŞME','Y. EKİPMAN'],
+    ['Aşama Seçenekleri:','Teklif','Görüşme','Sıcak','Kapandı','Kayıp'],
+    ['Çeyrek Örnekleri:','Q1 2026','Q2 2026','Q3 2026','Q4 2026'],
+    ['Olasılık:','0 ile 100 arasında tam sayı'],
+    ['Not:','Boş bırakılabilir'],
+  ];
 
-  if(bekleyenler.length===0){
-    showToast('✓ Tüm Kapandı fırsatlar zaten Satış Hareketleri\'nde','s');
+  const rows = [headers, ...examples, ...info];
+  const csv = rows.map(r=>r.map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+
+  const blob = new Blob([BOM+csv], {type:'text/csv;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'Pipeline_Firsat_Sablonu.csv';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000);
+  showToast('📥 Şablon indirildi — Excel ile açıp doldurun','s');
+}
+
+// ── Pipeline Excel / CSV Toplu Yükleme ───────────────────────
+function importPipelineExcel(input){
+  const file = input.files[0];
+  if(!file){ input.value=''; return; }
+
+  const isCsv = file.name.endsWith('.csv');
+
+  if(!isCsv){
+    showToast('❌ Lütfen CSV formatında kaydedin (.xlsx yerine "CSV UTF-8" olarak kaydedin)','e');
+    input.value='';
     return;
   }
-  if(!confirm(bekleyenler.length+' adet Kapandı fırsat Satış Hareketleri\'ne eklenecek. Devam?')) return;
 
-  let added=0;
-  for(const p of bekleyenler){
-    // ceyrek'ten ay belirle: 'Q3 2026' → '2026-07'
-    const qparts = (p.ceyrek||'Q3 2026').split(' ');
-    const q=qparts[0]; const yil=qparts[1]||'2026';
-    const ayMap={'Q1':'01','Q2':'04','Q3':'07','Q4':'10'};
-    const tarih = p.satis_ay ? p.satis_ay+'-01' : yil+'-'+(ayMap[q]||'01')+'-01';
-    await _addPotToSales(p, tarih);
-    added++;
-  }
-  lsSet(LS.SALES, salesData);
-  try{ renderHedefler(); }catch(e){}
-  const ap=document.querySelector('.page.active');
-  if(ap && (ap.id==='page-hareketler')) renderPage('hareketler');
-  showToast('✅ '+added+' fırsat Satış Hareketleri\'ne eklendi','s');
-  renderPipeline();
+  const reader = new FileReader();
+  reader.onload = async function(e){
+    const text = e.target.result.replace(/^﻿/,''); // BOM temizle
+    const lines = text.split(/\r?\n/).filter(l=>l.trim());
+
+    // Başlık satırını atla
+    const dataRows = lines.slice(1).filter(l=>!l.startsWith('"---')&&!l.startsWith('---'));
+
+    const repValid = new Set(['GOKHAN_KAYA','HAKAN_KEMER','HOUSE_ACCOUNT','KUTSİ_DEVECİ']);
+    const katValid = new Set(['M. KİMYASAL','M. SÖZLEŞME','M. EKİPMAN','Y. KİMYASAL','Y. SÖZLEŞME','Y. EKİPMAN']);
+    const asamaValid = new Set(['Teklif','Görüşme','Sıcak','Kapandı','Kayıp']);
+
+    const errors = [];
+    const valid  = [];
+
+    dataRows.forEach((line, li)=>{
+      // CSV parse (basit — tırnak içi virgül destekli)
+      const cols = [];
+      let cur='', inQ=false;
+      for(let ci=0;ci<line.length;ci++){
+        const ch=line[ci];
+        if(ch==='"'){ inQ=!inQ; }
+        else if(ch===','&&!inQ){ cols.push(cur.trim()); cur=''; }
+        else cur+=ch;
+      }
+      cols.push(cur.trim());
+
+      const [rep,cari,firsat,kat,ceyrek,asama,tutarStr,olasilikStr,not] = cols;
+      const rowNum = li+2; // başlık = 1. satır
+
+      if(!rep&&!cari&&!firsat) return; // boş satır, atla
+
+      const tutar    = parseFloat((tutarStr||'').replace(',','.'));
+      const olasilik = parseInt(olasilikStr||'50');
+
+      if(!repValid.has(rep))    errors.push(`Satır ${rowNum}: Geçersiz temsilci kodu — "${rep}"`);
+      else if(!cari)            errors.push(`Satır ${rowNum}: Müşteri adı boş`);
+      else if(!firsat)          errors.push(`Satır ${rowNum}: Fırsat adı boş`);
+      else if(!katValid.has(kat)) errors.push(`Satır ${rowNum}: Geçersiz kategori — "${kat}"`);
+      else if(!asamaValid.has(asama)) errors.push(`Satır ${rowNum}: Geçersiz aşama — "${asama}"`);
+      else if(isNaN(tutar)||tutar<=0)  errors.push(`Satır ${rowNum}: Geçersiz tutar — "${tutarStr}"`);
+      else if(isNaN(olasilik)||olasilik<0||olasilik>100) errors.push(`Satır ${rowNum}: Olasılık 0-100 arası olmalı — "${olasilikStr}"`);
+      else valid.push({rep,cari,firsat,kat,ceyrek:ceyrek||'Q4 2026',asama,tutar,olasilik,not:not||''});
+    });
+
+    if(errors.length>0){
+      alert('Yükleme hatası! Düzeltip tekrar deneyin:\n\n'+errors.join('\n'));
+      input.value='';
+      return;
+    }
+    if(valid.length===0){
+      showToast('⚠ Geçerli satır bulunamadı','w');
+      input.value='';
+      return;
+    }
+
+    if(!confirm(valid.length+' adet fırsat Pipeline\'a eklenecek. Devam?')){
+      input.value='';
+      return;
+    }
+
+    let added=0;
+    for(const row of valid){
+      const obj={
+        rep:row.rep, cari:row.cari, firsat:row.firsat,
+        kat:row.kat, ceyrek:row.ceyrek, asama:row.asama,
+        tutar:row.tutar, olasilik:row.olasilik, not:row.not,
+        satis_ay:null, _pid:'tmp_'+Date.now()+'_'+added
+      };
+      potData.unshift(obj);
+      await dbSavePot(obj);
+      added++;
+    }
+    lsSet(LS.POT, potData);
+    renderPipeline();
+    input.value='';
+    showToast('✅ '+added+' fırsat Pipeline\'a eklendi','s');
+  };
+  reader.readAsText(file, 'UTF-8');
 }
 
 // %100 olasılık seçildiğinde: _addPotToSales → salesData'ya eklenir
@@ -3056,8 +3156,6 @@ savePotModal = async function(){
   };
 
   // Kaydedilmiş önceki durumu al (güncelleme ise)
-  const prevPot = potEditId!==null ? potData.find(x=>x._pid===potEditId) : null;
-  const wasAlready100 = prevPot?.olasilik===100 && prevPot?.asama==='Kapandı';
 
   if(potEditId!==null){
     const idx=potData.findIndex(x=>x._pid===potEditId);
@@ -3071,23 +3169,6 @@ savePotModal = async function(){
     showToast('✓ Fırsat eklendi','s');
   }
   lsSet(LS.POT,potData);
-
-  // Otomatik satışa dönüştür: %100 ve henüz dönüştürülmemiş
-  if(olasilik===100 && !wasAlready100){
-    const tarih = satis_ay ? satis_ay+'-01' : new Date().toISOString().slice(0,10);
-    const savedPot = potData.find(x=>x._pid===(potEditId||obj._pid));
-    if(savedPot){
-      await _addPotToSales({...savedPot,...obj}, tarih);
-      // Aşamayı Kapandı yap
-      const idx2=potData.findIndex(x=>x._pid===savedPot._pid);
-      if(idx2>=0) potData[idx2].asama='Kapandı';
-      await dbSavePot(potData[idx2>=0?idx2:0]);
-      lsSet(LS.POT,potData);
-      // Hedef Yönetimi'ni de güncelle (salesData değişti)
-      try{ renderHedefler(); }catch(e){}
-      showToast('✅ %100 kesin: Satış Hareketleri ve Hedef Yönetimi\'ne eklendi','s');
-    }
-  }
 
   closePotModal(); renderPipeline();
   // Aktif sayfa hedefler veya hareketler ise yenile
