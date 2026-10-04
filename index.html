@@ -954,6 +954,22 @@ tr:hover td { background: #f8faff; }
       </div>
     </div>
   </div>
+
+  <!-- ══ VERİ YEDEKLEMEPipelinein altı ══ -->
+  <div style="padding:0 16px 24px">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🗄️ Veri Yedekleme</span>
+        <span class="card-sub">Pipeline + Satış verilerinin tamamı</span>
+      </div>
+      <div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-primary" onclick="backupAllData()">⬇ Yedek Al (JSON)</button>
+        <button class="btn btn-sm" onclick="document.getElementById('restore-input').click()">⬆ Yedekten Geri Yükle</button>
+        <input type="file" id="restore-input" accept=".json" style="display:none" onchange="restoreFromBackup(this)">
+        <span style="color:var(--text3);font-size:13px" id="backup-info">— Son yedek bilgisi yok</span>
+      </div>
+    </div>
+  </div>
 </div>
 
 </main>
@@ -2830,6 +2846,101 @@ function downloadPipelineTemplate(){
   document.body.appendChild(a); a.click();
   setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000);
   showToast('📥 Şablon indirildi — Excel ile açıp doldurun, CSV olarak kaydedin','s');
+}
+
+// ── Veri Yedekleme & Geri Yükleme ────────────────────────────
+async function backupAllData(){
+  try {
+    showToast('⏳ Veriler alınıyor...','i');
+    const { data: pots, error: e1 } = await _sb.from('potansiyel').select('*').order('created_at',{ascending:false});
+    const { data: sales, error: e2 } = await _sb.from('satis_hareketleri').select('*').order('tarih',{ascending:false});
+    if(e1||e2) throw new Error((e1||e2).message);
+
+    const backup = {
+      version: 1,
+      tarih: new Date().toISOString(),
+      pipeline: pots || [],
+      satis: sales || []
+    };
+
+    const json = JSON.stringify(backup, null, 2);
+    const blob = new Blob([json], {type:'application/json;charset=utf-8'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const ts   = new Date().toISOString().slice(0,10);
+    a.href = url; a.download = `TrioBRC_Yedek_${ts}.json`;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000);
+
+    const info = document.getElementById('backup-info');
+    if(info) info.textContent = `Son yedek: ${new Date().toLocaleString('tr-TR')} — ${(pots||[]).length} pipeline + ${(sales||[]).length} satış kaydı`;
+    showToast(`✅ Yedek alındı — ${(pots||[]).length} pipeline, ${(sales||[]).length} satış kaydı`,'s');
+  } catch(err){
+    showToast('❌ Yedek alınamadı: '+err.message,'e');
+  }
+}
+
+async function restoreFromBackup(input){
+  const file = input.files[0];
+  if(!file){ input.value=''; return; }
+
+  const reader = new FileReader();
+  reader.onload = async function(e){
+    try {
+      const backup = JSON.parse(e.target.result);
+      if(!backup.pipeline || !backup.satis){
+        showToast('❌ Geçersiz yedek dosyası','e');
+        input.value=''; return;
+      }
+
+      const pipeCount  = (backup.pipeline||[]).length;
+      const salesCount = (backup.satis||[]).length;
+      const tarih      = backup.tarih ? new Date(backup.tarih).toLocaleString('tr-TR') : '?';
+
+      if(!confirm(
+        `Yedek tarihi: ${tarih}\n` +
+        `İçerik: ${pipeCount} pipeline + ${salesCount} satış kaydı\n\n` +
+        `⚠️ DİKKAT: Bu işlem mevcut tüm verilerin üzerine yazacak!\n` +
+        `Devam etmek istiyor musunuz?`
+      )){ input.value=''; return; }
+
+      showToast('⏳ Geri yükleniyor...','i');
+
+      // Pipeline temizle ve yükle
+      const { error: delP } = await _sb.from('potansiyel').delete().neq('id', 0);
+      if(delP && !delP.message.includes('0 rows')) throw new Error('Pipeline silinemedi: '+delP.message);
+
+      if(pipeCount > 0){
+        // id alanını çıkar — Supabase otomatik atar
+        const cleanPots = backup.pipeline.map(r=>{ const {id,...rest}=r; return rest; });
+        for(let i=0;i<cleanPots.length;i+=100){
+          const { error: insP } = await _sb.from('potansiyel').insert(cleanPots.slice(i,i+100));
+          if(insP) throw new Error('Pipeline yüklenemedi: '+insP.message);
+        }
+      }
+
+      // Satış temizle ve yükle
+      const { error: delS } = await _sb.from('satis_hareketleri').delete().neq('id', 0);
+      if(delS && !delS.message.includes('0 rows')) throw new Error('Satış silinemedi: '+delS.message);
+
+      if(salesCount > 0){
+        const cleanSales = backup.satis.map(r=>{ const {id,...rest}=r; return rest; });
+        for(let i=0;i<cleanSales.length;i+=100){
+          const { error: insS } = await _sb.from('satis_hareketleri').insert(cleanSales.slice(i,i+100));
+          if(insS) throw new Error('Satış yüklenemedi: '+insS.message);
+        }
+      }
+
+      showToast(`✅ Geri yükleme tamamlandı — ${pipeCount} pipeline, ${salesCount} satış`,'s');
+      input.value='';
+      // Verileri yenile
+      await loadAll();
+    } catch(err){
+      showToast('❌ Geri yükleme hatası: '+err.message,'e');
+      input.value='';
+    }
+  };
+  reader.readAsText(file, 'utf-8');
 }
 
 // ── Pipeline Excel / CSV Toplu Yükleme ───────────────────────
