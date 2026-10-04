@@ -908,6 +908,14 @@ tr:hover td { background: #f8faff; }
     </div>
   </div>
   <div style="padding:0">
+    <!-- Dönem tabs -->
+    <div id="pipe-ceyrek-tabs" style="display:flex;gap:4px;padding:8px 16px 0;flex-wrap:wrap;background:var(--surface);border-bottom:1px solid var(--border)">
+      <button class="pipe-cq-tab" onclick="switchPipeCeyrek('',this)" style="font-size:10px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);cursor:pointer;background:transparent;color:var(--text2)">Tümü</button>
+      <button class="pipe-cq-tab" onclick="switchPipeCeyrek('Q3 2026',this)" style="font-size:10px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);cursor:pointer;background:transparent;color:var(--text2)">Q3 2026</button>
+      <button class="pipe-cq-tab pipe-cq-active" onclick="switchPipeCeyrek('Q4 2026',this)" style="font-size:10px;padding:4px 10px;border-radius:20px;border:1px solid #334155;cursor:pointer;background:#334155;color:#fff">Q4 2026</button>
+      <button class="pipe-cq-tab" onclick="switchPipeCeyrek('Q1 2027',this)" style="font-size:10px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);cursor:pointer;background:transparent;color:var(--text2)">Q1 2027</button>
+      <button class="pipe-cq-tab" onclick="switchPipeCeyrek('Q2 2027',this)" style="font-size:10px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);cursor:pointer;background:transparent;color:var(--text2)">Q2 2027</button>
+    </div>
     <!-- Rep tabs -->
     <div class="rep-tabs" id="pipe-tabs" style="margin-top:0">
       <div class="rep-tab active all" onclick="switchPipeRep('ALL',this)"><span class="tab-dot dot-all"></span>Tüm Ekip</div>
@@ -949,11 +957,6 @@ tr:hover td { background: #f8faff; }
             <option value="">Tüm Aşamalar</option>
             <option>Teklif</option><option>Görüşme</option>
             <option>Sıcak</option><option>Kapandı</option><option>Kayıp</option>
-          </select>
-          <select class="f-select" id="pipe-ceyrek" onchange="renderPipeline()" style="font-size:11px;padding:4px 8px">
-            <option value="">Tüm Dönemler</option>
-            <option>Q3 2026</option><option>Q4 2026</option>
-            <option>Q1 2027</option><option>Q2 2027</option>
           </select>
         </div>
       </div>
@@ -1236,10 +1239,17 @@ async function loadAll(){
   } catch(err){
     const msg = err?.message || err?.error_description || JSON.stringify(err) || String(err);
     console.error('Supabase error detail:', msg, err);
-    showToast('Bağlantı hatası: '+msg, 'e');
-    salesData = lsGet(LS.SALES) || RAW_DATA.map((r,i)=>({...r,_id:i}));
-    targets   = lsGet(LS.TARGETS) || targets;
-    potData   = lsGet(LS.POT) || [];
+    showToast('⚠️ Sunucu bağlantısı kurulamadı — yerel önbellek kullanılıyor', 'e');
+    // Veri kaybını önle: önce localStorage'a bak, yoksa mevcut bellekteki veriyi koru
+    const lsSales = lsGet(LS.SALES);
+    const lsPot   = lsGet(LS.POT);
+    const lsTgt   = lsGet(LS.TARGETS);
+    if(lsSales && lsSales.length>0) salesData = lsSales;
+    else if(!salesData || salesData.length===0) salesData = RAW_DATA.map((r,i)=>({...r,_id:i}));
+    // salesData zaten doluysa (önceki başarılı yükleme) dokunma
+    if(lsPot && lsPot.length>0) potData = lsPot;
+    // potData zaten doluysa dokunma
+    if(lsTgt) targets = lsTgt;
     setConn('err');
   }
   salesData = salesData.map((r,i)=>({...r,_id:r._id!==undefined?r._id:i+''}));
@@ -2684,6 +2694,7 @@ let _chPipC, _chPipA;
 let potEditId=null;
 
 let PIPE_REP = 'ALL';
+let PIPE_CEYREK = 'Q4 2026';
 let HAR_REP = 'ALL';
 
 // Sort state: { field, dir } dir = 'asc'|'desc'|null
@@ -3122,14 +3133,28 @@ function importPipelineExcel(input){
 // %100 olasılık seçildiğinde: _addPotToSales → salesData'ya eklenir
 // salesData değiştiğinde mTotals() otomatik güncellenir → Hedef Yönetimi'ne yansır
 
+function switchPipeCeyrek(cq, el){
+  PIPE_CEYREK = cq;
+  document.querySelectorAll('.pipe-cq-tab').forEach(b=>{
+    b.style.background='transparent';
+    b.style.color='var(--text2)';
+    b.style.borderColor='var(--border)';
+  });
+  if(el){
+    el.style.background='#334155';
+    el.style.color='#fff';
+    el.style.borderColor='#334155';
+  }
+  renderPipeline();
+}
+
 function renderPipeline(){
   const asama  = document.getElementById('pipe-asama')?.value||'';
-  const ceyrek = document.getElementById('pipe-ceyrek')?.value||'';
-  // Filter by rep
-  const basePot = PIPE_REP==='ALL' ? potData : potData.filter(p=>p.rep===PIPE_REP);
+  // basePot = rep + dönem filtresine göre
+  const repFiltered = PIPE_REP==='ALL' ? potData : potData.filter(p=>p.rep===PIPE_REP);
+  const basePot = PIPE_CEYREK ? repFiltered.filter(p=>p.ceyrek===PIPE_CEYREK) : repFiltered;
   const rows   = basePot.filter(p=>{
     if(asama&&p.asama!==asama) return false;
-    if(ceyrek&&p.ceyrek!==ceyrek) return false;
     return true;
   });
   // Kayıp hariç aktif fırsatlar (Kapandı dahil — pipeline gösterimi için)
