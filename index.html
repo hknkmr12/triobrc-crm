@@ -742,15 +742,7 @@ tr:hover td { background: #f8faff; }
       </div>
     </div>
     <!-- Satır 3: Temsilci KPI kartları (6 adet, 2×3) -->
-    <div style="margin-bottom:16px">
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">Temsilci KPI Detayları</span>
-          <span class="card-sub" id="rep-detail-sub">Gerçekleşen · Hedef · Pipeline</span>
-        </div>
-        <div class="card-body" id="rep-detail-kpis" style="padding:0 20px 20px"></div>
-      </div>
-    </div>
+    <div id="rep-detail-kpis" style="display:none"></div>
   </div>
 </div>
 
@@ -1486,7 +1478,8 @@ function paintLabels(chart){
         if(!el) return;
         const v = ds.data[i];
         if(!v||v<=0) return;
-        const lbl = v>=1000 ? '€'+Math.round(v/1000)+'K' : '€'+Math.round(v);
+        const isPct = ds.label && ds.label.includes('%') && ds.yAxisID === 'y2';
+        const lbl = isPct ? v.toFixed(1)+'%' : (v>=1000 ? '€'+Math.round(v/1000)+'K' : '€'+Math.round(v));
         let x, y;
         if(isHoriz){
           // Yatay bar: etiket çubuğun sağ ucuna yapışık
@@ -2203,7 +2196,15 @@ function renderMusteri(){
 
   // Pareto chart
   destroyChart('chPareto');
-  const top20=pareto.slice(0,20);
+  // %80 eşiğini geçene kadar tüm müşterileri göster + 3 fazlası (B segmenti görünümü için)
+  const idx80 = pareto.findIndex(d=>d.cumPct>=80);
+  const cutoff = idx80>=0 ? Math.min(pareto.length, idx80+4) : Math.min(pareto.length, 25);
+  const top20  = pareto.slice(0, cutoff);
+  // Grafik genişliğini veri sayısına göre ayarla
+  const chartWrap = document.getElementById('chPareto').parentElement;
+  const minW = Math.max(600, top20.length * 38);
+  chartWrap.style.overflowX = 'auto';
+  document.getElementById('chPareto').style.minWidth = minW+'px';
   new Chart(document.getElementById('chPareto'),{
     type:'bar',
     data:{
