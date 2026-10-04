@@ -3187,11 +3187,11 @@ function renderPipeline(){
   // Yüksek olasılıklı = ≥%75 VEYA Kapandı VEYA %100
   const highProb=actives.filter(p=>p.olasilik>=75||p.asama==='Kapandı'||p.olasilik===100);
   const totalAg=highProb.reduce((s,p)=>s+p.tutar,0);
-  // Sözleşme Faturaları = Q4 M.SÖZLEŞME + Y.SÖZLEŞME satışları (rep filtresine göre)
+  // Sözleşme Faturaları = Q1–Q3 (Ocak–Eylül) M.SÖZLEŞME + Y.SÖZLEŞME satışları (rep filtresine göre)
   const sozQ4Src = PIPE_REP==='ALL' ? salesData : salesData.filter(r=>r.rep===PIPE_REP);
   const sozQ4 = sozQ4Src.filter(r=>{
     const m = gm(r.tarih);
-    if(!['10','11','12'].includes(m)) return false;
+    if(!['01','02','03','04','05','06','07','08','09'].includes(m)) return false;
     const cat = getCat(r.satis_elemani);
     return cat==='M. SÖZLEŞME'||cat==='Y. SÖZLEŞME';
   });
@@ -3201,7 +3201,7 @@ function renderPipeline(){
     {label:'Toplam Pipeline',val:fmt(totalTah),sub:openActives.length+' açık fırsat · Kayıp hariç',color:'kc-orange'},
     {label:'Yüksek Olasılıklı',val:fmt(totalAg),sub:'≥%75 + Kapandı + %100 · '+highProb.length+' fırsat',color:'kc-green'},
     {label:'Fırsat Adedi',val:actives.length+'',sub:'Kayıp hariç tüm aşamalar',color:'kc-gray'},
-    {label:'Sözleşme Faturaları',val:fmt(totalSozQ4),sub:'Q4 Mevcut + Yeni Sözleşme',color:'kc-blue'},
+    {label:'Sözleşme Faturaları',val:fmt(totalSozQ4),sub:'Q1–Q3 Mevcut + Yeni Sözleşme',color:'kc-blue'},
   ].map((k,i)=>`<div class="kpi-card ${k.color}" style="animation-delay:${i*.04}s">
     <div class="kpi-label">${k.label}</div>
     <div class="kpi-value">${k.val}</div>
@@ -3343,7 +3343,7 @@ function renderPipeline(){
       <div style="text-align:center;line-height:1.8;margin-top:4px">
         <div style="font-size:11px;font-weight:700;color:${col2}">${fmt(yilSonuBeklenti)}</div>
         <div style="font-size:10px;color:var(--text3)">Beklenen Toplam</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px">${fmt(ytdSales)} satış + ${fmt(highProbVal)} pipeline${totalSozQ4>0?' + '+fmt(totalSozQ4)+' sözleşme':''}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">${fmt(ytdSales)} satış + ${fmt(highProbVal)} pipeline${totalSozQ4>0?' + '+fmt(totalSozQ4)+' Q3 sözleşme':''}</div>
         ${yHg>0?`<div style="font-size:10px;color:var(--text3);margin-top:2px">Hedef: <strong style="color:var(--text2)">${fmt(yHg)}</strong></div>`:`<div style="font-size:10px;color:var(--text3);margin-top:4px">Hedef girilmedi</div>`}
         ${yHg>0&&yilSonuBeklenti<yHg?`<div style="font-size:10px;color:${C.red};margin-top:2px">Açık: ${fmt(yHg-yilSonuBeklenti)}</div>`:''}
         ${yHg>0&&yilSonuBeklenti>=yHg?`<div style="font-size:10px;color:${C.green};font-weight:700;margin-top:2px">✓ Hedef kapsanıyor</div>`:''}
