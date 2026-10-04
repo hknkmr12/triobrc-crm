@@ -2236,19 +2236,11 @@ function renderMusteri(){
               type:'line',
               yScaleID:'y2',
               yMin:80,yMax:80,
-              borderColor:'#c72b2b',
-              borderWidth:1.5,
-              borderDash:[6,4],
-              label:{
-                content:'%80 Eşiği',
-                display:true,
-                position:'end',
-                color:'#c72b2b',
-                font:{size:10,weight:'600'},
-                backgroundColor:'#fee2e2',
-                padding:{x:6,y:3},
-                borderRadius:4
-              }
+              borderColor:'#c72b2b44',
+              borderWidth:1,
+              borderDash:[5,5],
+              drawTime:'beforeDatasetsDraw',
+              label:{display:false}
             }
           }
         }
