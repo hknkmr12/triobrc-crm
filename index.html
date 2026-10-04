@@ -2762,27 +2762,62 @@ async function _addPotToSales(p, tarih){
   return newRow;
 }
 
+// ── Pipeline Excel / CSV yardımcı eşleştirmeler ──────────────
+const _PIPE_REP_MAP = {
+  'gökhan kaya':'GOKHAN_KAYA','gokhan kaya':'GOKHAN_KAYA','gökhan':'GOKHAN_KAYA','gokhan':'GOKHAN_KAYA',
+  'hakan kemer':'HAKAN_KEMER','hakan':'HAKAN_KEMER',
+  'house account':'HOUSE_ACCOUNT','house':'HOUSE_ACCOUNT',
+  'kutsi deveci':'KUTSİ_DEVECİ','kutsi':'KUTSİ_DEVECİ','kutsı deveci':'KUTSİ_DEVECİ'
+};
+const _PIPE_KAT_MAP = {
+  'm.kimyasal':'M. KİMYASAL','m. kimyasal':'M. KİMYASAL','mkimyasal':'M. KİMYASAL','m kimyasal':'M. KİMYASAL',
+  'm.sözleşme':'M. SÖZLEŞME','m. sözleşme':'M. SÖZLEŞME','msözleşme':'M. SÖZLEŞME','m sozlesme':'M. SÖZLEŞME','m. sozlesme':'M. SÖZLEŞME',
+  'm.ekipman':'M. EKİPMAN','m. ekipman':'M. EKİPMAN','mekipman':'M. EKİPMAN','m ekipman':'M. EKİPMAN',
+  'y.kimyasal':'Y. KİMYASAL','y. kimyasal':'Y. KİMYASAL','ykimyasal':'Y. KİMYASAL','y kimyasal':'Y. KİMYASAL',
+  'y.sözleşme':'Y. SÖZLEŞME','y. sözleşme':'Y. SÖZLEŞME','ysözleşme':'Y. SÖZLEŞME','y sozlesme':'Y. SÖZLEŞME','y. sozlesme':'Y. SÖZLEŞME',
+  'y.ekipman':'Y. EKİPMAN','y. ekipman':'Y. EKİPMAN','yekipman':'Y. EKİPMAN','y ekipman':'Y. EKİPMAN',
+  // tam yazım da kabul
+  'm. ki̇myasal':'M. KİMYASAL','m. ki̇myasal':'M. KİMYASAL',
+  'y. ki̇myasal':'Y. KİMYASAL',
+};
+const _PIPE_ASAMA_MAP = {
+  'teklif':'Teklif','görüşme':'Görüşme','gorusme':'Görüşme','görüsme':'Görüşme',
+  'sıcak':'Sıcak','sicak':'Sıcak',
+  'kapandı':'Kapandı','kapandi':'Kapandı',
+  'kayıp':'Kayıp','kayip':'Kayıp'
+};
+function _normRep(v){ return _PIPE_REP_MAP[v.toLowerCase().trim()] || null; }
+function _normKat(v){
+  const k = v.toLowerCase().trim().replace(/\s+/g,' ');
+  if(_PIPE_KAT_MAP[k]) return _PIPE_KAT_MAP[k];
+  // tam eşleşme kontrolü (büyük harf)
+  const up = v.trim().toUpperCase();
+  const cats = ['M. KİMYASAL','M. SÖZLEŞME','M. EKİPMAN','Y. KİMYASAL','Y. SÖZLEŞME','Y. EKİPMAN'];
+  return cats.find(c=>c===v.trim()||c.toUpperCase()===up) || null;
+}
+function _normAsama(v){ return _PIPE_ASAMA_MAP[v.toLowerCase().trim()] || null; }
+
 // ── Pipeline Excel Şablonu İndir ─────────────────────────────
 function downloadPipelineTemplate(){
-  // CSV formatında şablon (Excel'de açılır)
   const BOM = '﻿';
   const headers = [
     'Temsilci','Müşteri Adı','Fırsat Adı','Kategori',
     'Çeyrek','Aşama','Tutar (EUR)','Olasılık (%)','Not'
   ];
   const examples = [
-    ['GOKHAN_KAYA','ÖRNEK A.Ş.','Su Arıtma Sistemi Satışı','M. KİMYASAL','Q4 2026','Teklif','25000','60','İlk görüşme yapıldı'],
-    ['HAKAN_KEMER','TEST LTD.','Soğutma Kulesi Bakım','Y. SÖZLEŞME','Q4 2026','Görüşme','18000','40','Teklif hazırlanıyor'],
+    ['Gökhan Kaya','ÖRNEK A.Ş.','Su Arıtma Sistemi Satışı','M.Kimyasal','Q4 2026','Teklif','25000','60','İlk görüşme yapıldı'],
+    ['Hakan Kemer','TEST LTD.','Soğutma Kulesi Bakım','Y.Sözleşme','Q4 2026','Görüşme','18000','40','Teklif hazırlanıyor'],
+    ['Kutsi Deveci','ABC SAN. TİC. A.Ş.','Kimyasal Dozing Ünitesi','M.Ekipman','Q4 2026','Sıcak','42000','75',''],
   ];
   const info = [
     [],
-    ['--- REFERANS TABLOSU ---'],
-    ['Temsilci Kodları:','GOKHAN_KAYA','HAKAN_KEMER','HOUSE_ACCOUNT','KUTSİ_DEVECİ'],
-    ['Kategori Seçenekleri:','M. KİMYASAL','M. SÖZLEŞME','M. EKİPMAN','Y. KİMYASAL','Y. SÖZLEŞME','Y. EKİPMAN'],
-    ['Aşama Seçenekleri:','Teklif','Görüşme','Sıcak','Kapandı','Kayıp'],
-    ['Çeyrek Örnekleri:','Q1 2026','Q2 2026','Q3 2026','Q4 2026'],
-    ['Olasılık:','0 ile 100 arasında tam sayı'],
-    ['Not:','Boş bırakılabilir'],
+    ['--- REFERANS (bu satırları silmeyin, yükleme sırasında atlanır) ---'],
+    ['Temsilci:','Gökhan Kaya','Hakan Kemer','House Account','Kutsi Deveci'],
+    ['Kategori:','M.Kimyasal','M.Sözleşme','M.Ekipman','Y.Kimyasal','Y.Sözleşme','Y.Ekipman'],
+    ['Aşama:','Teklif','Görüşme','Sıcak','Kapandı','Kayıp'],
+    ['Çeyrek:','Q1 2026','Q2 2026','Q3 2026','Q4 2026'],
+    ['Olasılık:','0 ile 100 arasında sayı (örn: 60)'],
+    ['Not:','Boş bırakılabilir — isteğe bağlı'],
   ];
 
   const rows = [headers, ...examples, ...info];
@@ -2794,7 +2829,7 @@ function downloadPipelineTemplate(){
   a.href = url; a.download = 'Pipeline_Firsat_Sablonu.csv';
   document.body.appendChild(a); a.click();
   setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000);
-  showToast('📥 Şablon indirildi — Excel ile açıp doldurun','s');
+  showToast('📥 Şablon indirildi — Excel ile açıp doldurun, CSV olarak kaydedin','s');
 }
 
 // ── Pipeline Excel / CSV Toplu Yükleme ───────────────────────
@@ -2802,12 +2837,13 @@ function importPipelineExcel(input){
   const file = input.files[0];
   if(!file){ input.value=''; return; }
 
-  const isCsv = file.name.endsWith('.csv');
-
-  if(!isCsv){
-    showToast('❌ Lütfen CSV formatında kaydedin (.xlsx yerine "CSV UTF-8" olarak kaydedin)','e');
-    input.value='';
-    return;
+  if(!file.name.match(/\.(csv|xlsx|xls)$/i)){
+    showToast('❌ Lütfen CSV veya Excel dosyası seçin','e');
+    input.value=''; return;
+  }
+  if(file.name.match(/\.xlsx?$/i)){
+    showToast('❌ Excel dosyasını "CSV UTF-8 (virgülle ayrılmış)" olarak kaydedin, sonra yükleyin','e');
+    input.value=''; return;
   }
 
   const reader = new FileReader();
@@ -2815,18 +2851,20 @@ function importPipelineExcel(input){
     const text = e.target.result.replace(/^﻿/,''); // BOM temizle
     const lines = text.split(/\r?\n/).filter(l=>l.trim());
 
-    // Başlık satırını atla
-    const dataRows = lines.slice(1).filter(l=>!l.startsWith('"---')&&!l.startsWith('---'));
-
-    const repValid = new Set(['GOKHAN_KAYA','HAKAN_KEMER','HOUSE_ACCOUNT','KUTSİ_DEVECİ']);
-    const katValid = new Set(['M. KİMYASAL','M. SÖZLEŞME','M. EKİPMAN','Y. KİMYASAL','Y. SÖZLEŞME','Y. EKİPMAN']);
-    const asamaValid = new Set(['Teklif','Görüşme','Sıcak','Kapandı','Kayıp']);
+    // Başlık + referans satırlarını atla
+    const dataRows = lines.slice(1).filter(l=>{
+      const low = l.toLowerCase();
+      return !low.includes('--- referans') && !low.startsWith('"temsilci:') &&
+             !low.startsWith('"kategori:') && !low.startsWith('"aşama:') &&
+             !low.startsWith('"çeyrek:')  && !low.startsWith('"olasılık:') &&
+             !low.startsWith('"not:');
+    });
 
     const errors = [];
     const valid  = [];
 
     dataRows.forEach((line, li)=>{
-      // CSV parse (basit — tırnak içi virgül destekli)
+      // CSV parse — tırnak içi virgül destekli
       const cols = [];
       let cur='', inQ=false;
       for(let ci=0;ci<line.length;ci++){
@@ -2837,20 +2875,23 @@ function importPipelineExcel(input){
       }
       cols.push(cur.trim());
 
-      const [rep,cari,firsat,kat,ceyrek,asama,tutarStr,olasilikStr,not] = cols;
-      const rowNum = li+2; // başlık = 1. satır
+      const [repRaw,cari,firsat,katRaw,ceyrek,asamaRaw,tutarStr,olasilikStr,not] = cols;
+      const rowNum = li+2;
 
-      if(!rep&&!cari&&!firsat) return; // boş satır, atla
+      if(!repRaw&&!cari&&!firsat) return; // boş satır
 
-      const tutar    = parseFloat((tutarStr||'').replace(',','.'));
+      const rep   = _normRep(repRaw||'');
+      const kat   = _normKat(katRaw||'');
+      const asama = _normAsama(asamaRaw||'');
+      const tutar    = parseFloat((tutarStr||'').replace(/\./g,'').replace(',','.'));
       const olasilik = parseInt(olasilikStr||'50');
 
-      if(!repValid.has(rep))    errors.push(`Satır ${rowNum}: Geçersiz temsilci kodu — "${rep}"`);
-      else if(!cari)            errors.push(`Satır ${rowNum}: Müşteri adı boş`);
-      else if(!firsat)          errors.push(`Satır ${rowNum}: Fırsat adı boş`);
-      else if(!katValid.has(kat)) errors.push(`Satır ${rowNum}: Geçersiz kategori — "${kat}"`);
-      else if(!asamaValid.has(asama)) errors.push(`Satır ${rowNum}: Geçersiz aşama — "${asama}"`);
-      else if(isNaN(tutar)||tutar<=0)  errors.push(`Satır ${rowNum}: Geçersiz tutar — "${tutarStr}"`);
+      if(!rep)    errors.push(`Satır ${rowNum}: Temsilci tanınamadı — "${repRaw}" (Gökhan Kaya / Hakan Kemer / House Account / Kutsi Deveci yazın)`);
+      else if(!cari)   errors.push(`Satır ${rowNum}: Müşteri adı boş`);
+      else if(!firsat) errors.push(`Satır ${rowNum}: Fırsat adı boş`);
+      else if(!kat)    errors.push(`Satır ${rowNum}: Kategori tanınamadı — "${katRaw}" (M.Kimyasal / M.Sözleşme / M.Ekipman / Y.Kimyasal / Y.Sözleşme / Y.Ekipman)`);
+      else if(!asama)  errors.push(`Satır ${rowNum}: Aşama tanınamadı — "${asamaRaw}" (Teklif / Görüşme / Sıcak / Kapandı / Kayıp)`);
+      else if(isNaN(tutar)||tutar<=0) errors.push(`Satır ${rowNum}: Geçersiz tutar — "${tutarStr}"`);
       else if(isNaN(olasilik)||olasilik<0||olasilik>100) errors.push(`Satır ${rowNum}: Olasılık 0-100 arası olmalı — "${olasilikStr}"`);
       else valid.push({rep,cari,firsat,kat,ceyrek:ceyrek||'Q4 2026',asama,tutar,olasilik,not:not||''});
     });
