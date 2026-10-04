@@ -652,22 +652,22 @@ tr:hover td { background: #f8faff; }
     <!-- KPI Row: 6 cards -->
     <div class="kpi-row" id="genel-kpis"></div>
     <!-- Main charts: Trend (geniş) + Şirket hedef gauge -->
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:3fr 1fr;gap:16px;margin-bottom:16px">
       <div class="card">
         <div class="card-header">
           <span class="card-title">Aylık Satış Trendi</span>
-          <div style="display:flex;align-items:center;gap:8px">
-            <div id="trend-view-btns" style="display:flex;gap:4px">
-              <button onclick="window._TREND_VIEW='ay';renderGenel()" id="tvb-ay"
-                style="font-size:10px;padding:2px 9px;border-radius:20px;border:1px solid;cursor:pointer;background:#334155;color:#fff;border-color:#334155">Aylık</button>
-              <button onclick="window._TREND_VIEW='ceyrek';renderGenel()" id="tvb-ceyrek"
-                style="font-size:10px;padding:2px 9px;border-radius:20px;border:1px solid;cursor:pointer;background:transparent;color:#64748b;border-color:#cbd5e1">Çeyrek</button>
-            </div>
-            <button class="ch-eye" onclick="toggleLabels('chMonthly',this)">👁</button>
+          <div id="trend-view-btns" style="display:flex;gap:4px">
+            <button onclick="window._TREND_VIEW='ay';renderGenel()" id="tvb-ay"
+              style="font-size:10px;padding:2px 9px;border-radius:20px;border:1px solid;cursor:pointer;background:#334155;color:#fff;border-color:#334155">Aylık</button>
+            <button onclick="window._TREND_VIEW='ceyrek';renderGenel()" id="tvb-ceyrek"
+              style="font-size:10px;padding:2px 9px;border-radius:20px;border:1px solid;cursor:pointer;background:transparent;color:#64748b;border-color:#cbd5e1">Çeyrek</button>
           </div>
         </div>
         <div class="card-body">
-          <div class="ch-wrap" style="height:240px"><canvas id="chMonthly"></canvas></div>
+          <div class="ch-wrap" style="height:260px">
+            <canvas id="chMonthly"></canvas>
+            <button class="ch-eye" onclick="toggleLabels('chMonthly',this)">👁</button>
+          </div>
         </div>
       </div>
       <div class="card">
@@ -676,14 +676,16 @@ tr:hover td { background: #f8faff; }
       </div>
     </div>
     <!-- Bottom row: Kategori bar + Top10 + Aylık ilerleme -->
-    <div class="g3" style="margin-bottom:16px">
+    <div class="g3" style="margin-bottom:16px;grid-template-columns:0.75fr 1fr 1fr">
       <div class="card">
         <div class="card-header">
           <span class="card-title">Kategori Dağılımı</span>
-          <button class="ch-eye" onclick="toggleLabels('chCatBar',this)">👁</button>
         </div>
         <div class="card-body">
-          <div class="ch-wrap" style="height:280px"><canvas id="chCatBar"></canvas></div>
+          <div class="ch-wrap" style="height:280px">
+            <canvas id="chCatBar"></canvas>
+            <button class="ch-eye" onclick="toggleLabels('chCatBar',this)">👁</button>
+          </div>
         </div>
       </div>
       <div class="card">
@@ -743,10 +745,12 @@ tr:hover td { background: #f8faff; }
         <div class="card-header">
           <span class="card-title">Aylık Trend</span>
           <span class="card-sub" id="rep-trend-sub" style="color:var(--blue)"></span>
-          <button class="ch-eye" onclick="toggleLabels('chRepLine',this)">👁</button>
         </div>
         <div class="card-body">
-          <div class="ch-wrap" style="height:260px"><canvas id="chRepLine"></canvas></div>
+          <div class="ch-wrap" style="height:260px">
+            <canvas id="chRepLine"></canvas>
+            <button class="ch-eye" onclick="toggleLabels('chRepLine',this)">👁</button>
+          </div>
         </div>
       </div>
     </div>
@@ -777,10 +781,12 @@ tr:hover td { background: #f8faff; }
       <div class="card">
         <div class="card-header">
           <span class="card-title">Pareto Analizi — %80/20</span>
-          <button class="ch-eye" onclick="toggleLabels('chPareto',this)">👁</button>
         </div>
         <div class="card-body">
-          <div class="ch-wrap" style="height:340px"><canvas id="chPareto"></canvas></div>
+          <div class="ch-wrap" style="height:340px">
+            <canvas id="chPareto"></canvas>
+            <button class="ch-eye" onclick="toggleLabels('chPareto',this)">👁</button>
+          </div>
         </div>
       </div>
     </div>
@@ -945,10 +951,11 @@ tr:hover td { background: #f8faff; }
     <!-- Charts -->
     <div class="g2" style="margin-bottom:16px">
       <div class="card">
-        <div class="card-header"><span class="card-title">Aşamaya Göre Müşteri Pipeline</span><button class="ch-eye" onclick="toggleLabels('chPipeMust',this)">👁</button></div>
+        <div class="card-header"><span class="card-title">Aşamaya Göre Müşteri Pipeline</span></div>
         <div class="card-body" style="padding:8px 4px;flex:1">
-          <div id="chPipeMustWrap" style="overflow:hidden">
+          <div id="chPipeMustWrap" style="overflow:hidden;position:relative">
             <canvas id="chPipeMust"></canvas>
+            <button class="ch-eye" onclick="toggleLabels('chPipeMust',this)">👁</button>
           </div>
         </div>
       </div>
