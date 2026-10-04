@@ -263,6 +263,7 @@ body {
   border-radius: var(--radius);
   overflow: hidden; box-shadow: var(--shadow-sm);
   animation: fadeUp .45s ease both;
+  display: flex; flex-direction: column;
 }
 .card-header {
   padding: 14px 18px;
@@ -937,7 +938,7 @@ tr:hover td { background: #f8faff; }
     <div class="g2" style="margin-bottom:16px">
       <div class="card">
         <div class="card-header"><span class="card-title">Aşamaya Göre Müşteri Pipeline</span></div>
-        <div class="card-body" style="padding:8px 4px">
+        <div class="card-body" style="padding:8px 4px;flex:1">
           <div id="chPipeMustWrap" style="overflow:hidden">
             <canvas id="chPipeMust"></canvas>
           </div>
@@ -945,12 +946,12 @@ tr:hover td { background: #f8faff; }
       </div>
       <div class="card">
         <div class="card-header"><span class="card-title">Pipeline Özet</span></div>
-        <div class="card-body" style="padding:8px 0">
-          <div id="pipe-gauges-row" style="display:flex;align-items:center;justify-content:space-around;gap:8px;flex-wrap:wrap;min-height:200px">
+        <div class="card-body" style="padding:16px 8px;flex:1;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center">
+          <div id="pipe-gauges-row" style="display:flex;align-items:center;justify-content:space-around;gap:16px;flex-wrap:wrap;flex:1;min-height:280px">
             <!-- Sol: Pipeline gauge -->
-            <div id="pipe-gauge-wrap" style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:130px"></div>
+            <div id="pipe-gauge-wrap" style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:140px"></div>
             <!-- Sağ: Hedef gauge -->
-            <div id="pipe-hedef-wrap" style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:130px"></div>
+            <div id="pipe-hedef-wrap" style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:140px"></div>
           </div>
         </div>
       </div>
@@ -3251,9 +3252,7 @@ function renderPipeline(){
     // Etiket butonları
     const wrap=document.getElementById('chPipeMustWrap');
     wrap.style.height=canvasH+'px';
-    // Sağ gauge panelini aynı yüksekliğe getir ve ortala
-    const gaugesRow=document.getElementById('pipe-gauges-row');
-    if(gaugesRow) gaugesRow.style.minHeight=canvasH+'px';
+    // Sağ gauge paneli sabit yükseklikte — JS müdahalesi yok
     let btnBar=document.getElementById('pipeMustBtnBar');
     if(!btnBar){
       btnBar=document.createElement('div');
