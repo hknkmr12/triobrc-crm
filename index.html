@@ -2443,7 +2443,7 @@ function renderHareketler(rows){
       <td style="text-align:right" class="td-pos">${fmt(r.tutar,2)}</td>
       <td><span class="pill ${cc}">${cat.split('. ')[1]||cat||'—'}</span> <span class="pill ${tc}">${cat[0]||'—'}</span></td>
       <td title="${r.aciklama}" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text3);font-size:11px">${r.aciklama}</td>
-      <td><button class="btn btn-icon btn-warn" onclick="openMiniModal(${r._id})">✏️</button></td>
+      <td><button class="btn btn-icon btn-warn" onclick="openMiniModal('${r._id}')">✏️</button></td>
     </tr>`;
   }).join('');
 }
@@ -3509,7 +3509,7 @@ var deleteFromMini=function(){};
 var saveAddModal=function(){};
 var deletePot=function(){};
 function openMiniModal(id){
-  const r=salesData.find(x=>x._id==id);if(!r)return;
+  const r=salesData.find(x=>String(x._id)===String(id));if(!r)return;
   miniEditId=id;
   document.getElementById('mi-rep').value=r.rep;
   document.getElementById('mi-tarih').value=r.tarih;
@@ -3553,7 +3553,7 @@ const _origMiniEditId = () => miniEditId;
 
 saveMiniModal = async function(){
   if(miniEditId===null) return;
-  const r=salesData.find(x=>x._id===miniEditId); if(!r) return;
+  const r=salesData.find(x=>String(x._id)===String(miniEditId)); if(!r) return;
   const kat=document.getElementById('mi-kat').value;
   const rep=document.getElementById('mi-rep').value;
   const repNames={GOKHAN_KAYA:'GÖKHAN KAYA',HAKAN_KEMER:'HAKAN KEMER',HOUSE_ACCOUNT:'HOUSE ACCOUNT','KUTSİ_DEVECİ':'KUTSİ DEVECİ'};
