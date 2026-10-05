@@ -1042,47 +1042,6 @@ tr:hover td { background: #f8faff; }
 </div>
 <div id="mini-backdrop" style="display:none;position:fixed;inset:0;z-index:1999;background:rgba(0,0,0,.4);backdrop-filter:blur(2px);" onclick="closeMiniModal()"></div>
 
-<!-- ===== ADD MODAL ===== -->
-<div class="modal-overlay" id="addModal">
-  <div class="modal">
-    <div class="modal-title">➕ Yeni Satış Hareketi</div>
-    <div class="form-grid-2">
-      <div class="form-group"><label class="form-label">Temsilci</label>
-        <select class="form-input" id="am-rep">
-          <option value="GOKHAN_KAYA">Gökhan Kaya</option>
-          <option value="HAKAN_KEMER">Hakan Kemer</option>
-          <option value="HOUSE_ACCOUNT">House Account</option>
-          <option value="KUTSİ_DEVECİ">Kutsi Deveci</option>
-        </select></div>
-      <div class="form-group"><label class="form-label">Tarih</label><input class="form-input" type="date" id="am-tarih"></div>
-      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Müşteri Adı</label><input class="form-input" id="am-cari"></div>
-      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Ürün / Hizmet</label><input class="form-input" id="am-urun"></div>
-      <div class="form-group"><label class="form-label">Miktar</label><input class="form-input" type="number" id="am-miktar" value="1"></div>
-      <div class="form-group"><label class="form-label">Birim</label>
-        <select class="form-input" id="am-birim"><option>Adet</option><option>Kg</option><option>Lt</option></select></div>
-      <div class="form-group"><label class="form-label">Birim Fiyat</label><input class="form-input" type="number" id="am-fiyat" value="0" step="0.01"></div>
-      <div class="form-group"><label class="form-label">Döviz</label>
-        <select class="form-input" id="am-doviz"><option>EUR</option><option>TRY</option><option>USD</option></select></div>
-      <div class="form-group"><label class="form-label">Kur</label><input class="form-input" type="number" id="am-kur" value="53" step="0.01"></div>
-      <div class="form-group"><label class="form-label">Tutar EUR</label><input class="form-input" type="number" id="am-tutar" value="0" step="0.01"></div>
-      <div class="form-group"><label class="form-label">Kategori</label>
-        <select class="form-input" id="am-kat">
-          <option value="M. KİMYASAL">M. Kimyasal</option>
-          <option value="M. SÖZLEŞME">M. Sözleşme</option>
-          <option value="M. EKİPMAN">M. Ekipman</option>
-          <option value="Y. KİMYASAL">Y. Kimyasal</option>
-          <option value="Y. SÖZLEŞME">Y. Sözleşme</option>
-          <option value="Y. EKİPMAN">Y. Ekipman</option>
-        </select></div>
-      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Açıklama</label><input class="form-input" id="am-aciklama"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeAddModal()">İptal</button>
-      <button class="btn btn-primary" onclick="saveAddModal()">Kaydet</button>
-    </div>
-  </div>
-</div>
-
 <!-- ADD MODAL -->
 <div class="modal-overlay" id="addModal">
   <div class="modal">
@@ -3545,6 +3504,10 @@ document.getElementById('potModal').addEventListener('click',function(e){if(e.ta
 
 // Mini modal helpers
 let miniEditId=null;
+var saveMiniModal=function(){};
+var deleteFromMini=function(){};
+var saveAddModal=function(){};
+var deletePot=function(){};
 function openMiniModal(id){
   const r=salesData.find(x=>x._id==id);if(!r)return;
   miniEditId=id;
